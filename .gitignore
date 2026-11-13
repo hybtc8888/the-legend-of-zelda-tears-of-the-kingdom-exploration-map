@@ -10,3 +10,5 @@ new-build.log
 new-validation*
 install_local.py
 standalone-validation*/
+
+hotkeys-validation*/

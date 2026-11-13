@@ -14,13 +14,15 @@ def edit(text, old, new):
 def integrate(tree):
     game = tree / "games/totk"
     runtime = game / "runtime"
-    filenames = ("map_points.h", "map_points_view.h", "map_runtime.c")
+    filenames = ("map_points.h", "map_points_view.h", "map_runtime.c", "map_input.h", "map_input.c")
     if any((runtime / name).exists() for name in filenames):
         raise ValueError("Start with a checkout without an existing exploration map integration")
 
     loader = runtime / "loader.c"
     front = runtime / "frontend.m"
     launcher = game / "app/launcher.m"
+    input_source = runtime / "input.c"
+    gamepad = runtime / "gamepad.m"
     makefile = game / "Makefile"
 
     line = 'for(unsigned i=0;i<NM;i++)if(!strcmp(modules[i].name,"main"))runtime_game_patches(&modules[i]);'
@@ -63,15 +65,32 @@ def integrate(tree):
         }
 #endif
 ''' + line)
+    input_new = edit(input_source.read_text(), " }*out=state;pthread_mutex_unlock(&inputLock);", """
+#if defined(TOTK_GAME_V143) && !TARGET_OS_IPHONE
+ if(!ignore_user()){
+  extern void runtime_map_filter_input(uint64_t, uint64_t *, int32_t *, int32_t *, int32_t *, int32_t *, uint64_t);
+  runtime_map_filter_input(pad.buttons,&state.buttons,&state.lx,&state.ly,&state.rx,&state.ry,runtime_now_ns());
+ }
+#endif
+ }*out=state;pthread_mutex_unlock(&inputLock);""")
+    gamepad_new = edit(gamepad.read_text(), """    if (touchState.connected) out->connected = 1;
+    vr_pad_merge(out, 0);""", """    if (touchState.connected) out->connected = 1;
+#if defined(TOTK_GAME_V143) && TARGET_OS_OSX
+    extern void runtime_map_input_physical(uint64_t, uint16_t, int);
+    runtime_map_input_physical(textPad.buttons, controllerMap[5], !textCapture);
+#endif
+    vr_pad_merge(out, 0);""")
+
     build = makefile.read_text()
     start = build.index("\nbuild/totk-native-v143:")
     end = build.index("\n\n", start)
     block = build[start:end]
-    build = build[:start] + edit(block, "runtime/loader.c", "runtime/loader.c runtime/map_runtime.c") + build[end:]
+    build = build[:start] + edit(block, "runtime/loader.c", "runtime/loader.c runtime/map_runtime.c runtime/map_input.c") + build[end:]
 
     for name in filenames:
         (runtime / name).write_bytes((HERE / name).read_bytes())
-    for path, data in [(loader, loader_new), (front, front_new), (launcher, launcher_new), (makefile, build)]:
+    for path, data in [(loader, loader_new), (front, front_new), (launcher, launcher_new), (input_source, input_new),
+                       (gamepad, gamepad_new), (makefile, build)]:
         path.write_text(data)
 
 
