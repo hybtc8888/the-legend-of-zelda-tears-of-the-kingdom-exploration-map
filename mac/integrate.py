@@ -2,6 +2,8 @@
 import argparse
 from pathlib import Path
 
+from map_locale import render_header
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -15,8 +17,21 @@ def integrate(tree):
     game = tree / "games/totk"
     runtime = game / "runtime"
     filenames = ("map_points.h", "map_points_view.h", "map_runtime.c", "map_input.h", "map_input.c")
-    if any((runtime / name).exists() for name in filenames):
-        raise ValueError("Start with a checkout without an existing exploration map integration")
+    catalog = runtime / "map_locale_data.h"
+    catalog_text = render_header()
+    installed = [(runtime / name).is_file() for name in filenames]
+    if any(installed) or catalog.exists():
+        hooks = (
+            (runtime / "frontend.m", '#include "map_points_view.h"'),
+            (runtime / "loader.c", "runtime_map_install(&modules[0])"),
+            (game / "Makefile", "runtime/map_runtime.c runtime/map_input.c"),
+        )
+        if not all(installed) or not all(marker in path.read_text() for path, marker in hooks):
+            raise ValueError("Incomplete exploration map integration; use a clean MacNativeGames checkout")
+        for name in filenames:
+            (runtime / name).write_bytes((HERE / name).read_bytes())
+        catalog.write_text(catalog_text, encoding="utf-8")
+        return
 
     loader = runtime / "loader.c"
     front = runtime / "frontend.m"
@@ -89,6 +104,7 @@ def integrate(tree):
 
     for name in filenames:
         (runtime / name).write_bytes((HERE / name).read_bytes())
+    catalog.write_text(catalog_text, encoding="utf-8")
     for path, data in [(loader, loader_new), (front, front_new), (launcher, launcher_new), (input_source, input_new),
                        (gamepad, gamepad_new), (makefile, build)]:
         path.write_text(data)

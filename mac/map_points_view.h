@@ -1,6 +1,7 @@
 /* Included by the macOS 1.4.3 frontend. The map remains the first responder. */
 #include "map_points.h"
 #include "map_input.h"
+#include "map_locale_data.h"
 #include <errno.h>
 
 @interface TOTKMapPointsView : NSView
@@ -11,6 +12,10 @@
     NSDictionary<NSString *, NSArray *> *_layers;
     NSSet<NSString *> *_categories;
     NSArray<NSString *> *_categoryNames;
+    NSDictionary<NSString *, NSDictionary *> *_catalogs;
+    NSDictionary<NSString *, NSString *> *_strings, *_categoryLabels;
+    NSString *_language;
+    NSMenuItem *_menuItem;
     NSInteger _preset, _selectedRow, _firstRow;
     BOOL _mapActive, _panelOpen;
     id _keyboardMonitor;
@@ -28,9 +33,8 @@
 
 static const NSInteger mapActionCount = 6;
 
-static NSArray<NSString *> *mapActionTitles(void) {
-    return @[@"显示探索图层", @"按探索进度隐藏或变暗", @"仅显示地标",
-             @"仅显示收集点", @"仅显示 Boss 和人马", @"恢复自选分类"];
+static NSArray<NSString *> *mapActionKeys(void) {
+    return @[@"show_layer", @"progress", @"landmarks", @"collectibles", @"bosses", @"custom"];
 }
 
 static BOOL mapCategoryInPreset(NSString *category, NSInteger preset) {
@@ -46,6 +50,45 @@ static BOOL mapCategoryInPreset(NSString *category, NSInteger preset) {
 }
 
 static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
+static NSString *const mapLanguageFile = @"map-language.txt";
+
+-(NSString *)labelForCategory:(NSString *)category {
+    return _categoryLabels[category] ?: category;
+}
+
+-(void)useLanguage:(NSString *)language {
+    _language = _catalogs[language] ? language : @"auto";
+    NSString *effective = _language;
+    if ([_language isEqualToString:@"auto"]) {
+        effective = @"en";
+        for (NSString *preferred in NSLocale.preferredLanguages) {
+            NSString *code = [NSLocale localeWithLocaleIdentifier:preferred].languageCode;
+            if ([code isEqualToString:@"zh"]) code = @"zh-Hans";
+            if (code && _catalogs[code]) {
+                effective = code;
+                break;
+            }
+        }
+    }
+    NSDictionary *catalog = _catalogs[effective];
+    _strings = catalog[@"ui"];
+    _categoryLabels = catalog[@"categories"];
+    NSLocale *locale = [NSLocale localeWithLocaleIdentifier:effective];
+    _categoryNames = [_categoryNames sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+        NSString *left = [self labelForCategory:a], *right = [self labelForCategory:b];
+        NSComparisonResult order = [left compare:right options:NSCaseInsensitiveSearch | NSNumericSearch
+            range:NSMakeRange(0, left.length) locale:locale];
+        return order == NSOrderedSame ? [a compare:b] : order;
+    }];
+    _selectedRow = _firstRow = 0;
+}
+
+-(void)changeLanguage:(NSMenuItem *)item {
+    [self useLanguage:item.representedObject];
+    runtime_setting_save(mapLanguageFile.UTF8String, _language.UTF8String, "map language");
+    [self updateMenu];
+    [self setNeedsDisplay:YES];
+}
 
 -(instancetype)initWithFrame:(NSRect)frame {
     const char *path = getenv("TOTK_MAP_POINTS");
@@ -76,7 +119,12 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
         for (NSArray *points in _layers.allValues)
             for (NSDictionary *point in points) [allCategories addObject:point[@"category"]];
         _categories = [allCategories copy];
-        _categoryNames = [allCategories.allObjects sortedArrayUsingSelector:@selector(localizedStandardCompare:)];
+        _categoryNames = allCategories.allObjects;
+        _catalogs = mapCatalogs();
+        char language[32];
+        NSString *choice = runtime_setting_word(mapLanguageFile.UTF8String, language, sizeof language)
+            ? [@(language) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : @"auto";
+        [self useLanguage:choice ?: @"auto"];
         _enabled = YES;
         char saved[8192];
         if (runtime_setting_word(mapSettingsFile.UTF8String, saved, sizeof saved)) {
@@ -144,7 +192,7 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
 
 -(NSRect)panelRect {
     NSRect b = self.bounds;
-    CGFloat width = fmin(440, NSWidth(b)-32);
+    CGFloat width = fmin(520, NSWidth(b)-32);
     CGFloat height = fmin(474, NSHeight(b)-64);
     return NSMakeRect(NSMinX(b)+28, NSMinY(b)+46, fmax(0,width), fmax(0,height));
 }
@@ -320,6 +368,10 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
     [self setNeedsDisplay:YES];
 }
 -(BOOL)validateMenuItem:(NSMenuItem *)item {
+    if (item.action == @selector(changeLanguage:)) {
+        item.state = [_language isEqualToString:item.representedObject] ? NSControlStateValueOn : NSControlStateValueOff;
+        return YES;
+    }
     if (item.action == @selector(toggleProgress:)) {
         item.state = _progressEnabled ? NSControlStateValueOn : NSControlStateValueOff;
         return _progress.length>0;
@@ -334,26 +386,31 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
     return YES;
 }
 -(void)addMenu:(NSMenu *)menu {
-    NSMenu *categories = [[NSMenu alloc] initWithTitle:@"探索地图"];
-    NSMenuItem *parent = [[NSMenuItem alloc] initWithTitle:categories.title action:nil keyEquivalent:@""];
-    parent.submenu = categories;
-    [menu addItem:parent];
-    NSMenuItem *toggle = [[NSMenuItem alloc] initWithTitle:@"显示点位" action:@selector(toggle:) keyEquivalent:@"m"];
+    _menuItem = [[NSMenuItem alloc] initWithTitle:_strings[@"title"] action:nil keyEquivalent:@""];
+    [menu addItem:_menuItem];
+    [self updateMenu];
+}
+
+-(void)updateMenu {
+    _menuItem.title = _strings[@"title"];
+    NSMenu *categories = [[NSMenu alloc] initWithTitle:_menuItem.title];
+    _menuItem.submenu = categories;
+    NSMenuItem *toggle = [[NSMenuItem alloc] initWithTitle:_strings[@"show_layer"] action:@selector(toggle:) keyEquivalent:@"m"];
     toggle.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     toggle.target = self;
     [categories addItem:toggle];
-    NSMenuItem *progress = [[NSMenuItem alloc] initWithTitle:@"按探索进度隐藏或变暗" action:@selector(toggleProgress:) keyEquivalent:@"p"];
+    NSMenuItem *progress = [[NSMenuItem alloc] initWithTitle:_strings[@"progress"] action:@selector(toggleProgress:) keyEquivalent:@"p"];
     progress.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     progress.target = self;
     [categories addItem:progress];
-    NSMenuItem *help = [[NSMenuItem alloc] initWithTitle:@"分类与快捷键" action:@selector(toggleHelp:) keyEquivalent:@"l"];
+    NSMenuItem *help = [[NSMenuItem alloc] initWithTitle:_strings[@"controls"] action:@selector(toggleHelp:) keyEquivalent:@"l"];
     help.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     help.target = self;
     [categories addItem:help];
     [categories addItem:NSMenuItem.separatorItem];
     for (NSInteger i = 0; i < 4; i++) {
         NSInteger tag = (i+1)%4;
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:mapActionTitles()[i+2] action:@selector(presetMenu:)
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:_strings[mapActionKeys()[i+2]] action:@selector(presetMenu:)
             keyEquivalent:[NSString stringWithFormat:@"%ld",(long)tag]];
         item.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
         item.target = self;
@@ -361,8 +418,20 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
         [categories addItem:item];
     }
     [categories addItem:NSMenuItem.separatorItem];
+    NSMenu *language = [[NSMenu alloc] initWithTitle:_strings[@"language"]];
+    NSMenuItem *languageItem = [[NSMenuItem alloc] initWithTitle:language.title action:nil keyEquivalent:@""];
+    languageItem.submenu = language;
+    [categories addItem:languageItem];
+    for (NSString *code in [@[@"auto"] arrayByAddingObjectsFromArray:mapLanguages()]) {
+        NSString *title = _catalogs[code][@"name"] ?: _strings[@"automatic"];
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(changeLanguage:) keyEquivalent:@""];
+        item.target = self;
+        item.representedObject = code;
+        [language addItem:item];
+    }
+    [categories addItem:NSMenuItem.separatorItem];
     for (NSString *name in _categoryNames) {
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:name action:@selector(toggle:) keyEquivalent:@""];
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:[self labelForCategory:name] action:@selector(toggle:) keyEquivalent:@""];
         item.target = self;
         item.representedObject = name;
         [categories addItem:item];
@@ -431,10 +500,18 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
     NSDictionary *help = @{NSFontAttributeName:[NSFont systemFontOfSize:12], NSForegroundColorAttributeName:[NSColor colorWithWhite:0.85 alpha:1]};
     NSDictionary *label = @{NSFontAttributeName:[NSFont systemFontOfSize:14], NSForegroundColorAttributeName:NSColor.whiteColor};
     CGFloat x = NSMinX(panel)+16, top = NSMaxY(panel), width = NSWidth(panel)-32;
-    [@"探索地图" drawInRect:NSMakeRect(x,top-30,width,24) withAttributes:title];
-    [@"⌘⇧L / R3 收起　 长按 R3 开关图层" drawInRect:NSMakeRect(x,top-50,width,18) withAttributes:help];
-    [@"方向键选择　回车确认　Esc 返回" drawInRect:NSMakeRect(x,top-68,width,18) withAttributes:help];
-    [@"手柄十字键选择　游戏确认键切换　返回键收起" drawInRect:NSMakeRect(x,top-86,width,18) withAttributes:help];
+    [_strings[@"title"] drawInRect:NSMakeRect(x,top-30,width,24) withAttributes:title];
+    NSArray *helpKeys = @[@"help_layer", @"help_keyboard", @"help_gamepad"];
+    for (NSUInteger i = 0; i < helpKeys.count; i++) {
+        NSString *line = _strings[helpKeys[i]];
+        CGFloat lineWidth = [line sizeWithAttributes:help].width;
+        NSDictionary *attributes = help;
+        if (lineWidth > width && width > 0) {
+            attributes = @{NSFontAttributeName:[NSFont systemFontOfSize:12*width/lineWidth],
+                           NSForegroundColorAttributeName:help[NSForegroundColorAttributeName]};
+        }
+        [line drawInRect:NSMakeRect(x,top-50-i*18,width,18) withAttributes:attributes];
+    }
     NSArray *keys = @[@"⌘⇧M", @"⌘⇧P", @"⌘⇧1", @"⌘⇧2", @"⌘⇧3", @"⌘⇧0"];
     NSInteger total = mapActionCount+(NSInteger)_categoryNames.count;
     NSInteger end = MIN(total,_firstRow+[self visiblePanelRows]);
@@ -444,11 +521,12 @@ static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
             [[NSColor colorWithSRGBRed:0.15 green:0.31 blue:0.41 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x-4,y,width+8,24) xRadius:5 yRadius:5] fill];
         }
-        NSString *name = i<mapActionCount ? mapActionTitles()[i] : _categoryNames[i-mapActionCount];
+        NSString *category = i<mapActionCount ? nil : _categoryNames[i-mapActionCount];
+        NSString *name = category ? [self labelForCategory:category] : _strings[mapActionKeys()[i]];
         BOOL checked = i==0 ? _enabled : i==1 ? _progressEnabled : i==5 ? !_preset
-            : i<mapActionCount ? _preset==i-1 : [_categories containsObject:name];
+            : i<mapActionCount ? _preset==i-1 : [_categories containsObject:category];
         NSString *row = [NSString stringWithFormat:@"%@  %@",checked ? @"☑" : @"☐",name];
-        [row drawInRect:NSMakeRect(x,y+3,width-62,20) withAttributes:label];
+        [row drawInRect:NSMakeRect(x,y+3,width-(category ? 0 : 62),20) withAttributes:label];
         if (i<mapActionCount) [keys[i] drawInRect:NSMakeRect(x+width-56,y+3,56,20) withAttributes:help];
     }
     [[NSString stringWithFormat:@"%ld / %ld",(long)(_selectedRow+1),(long)total]

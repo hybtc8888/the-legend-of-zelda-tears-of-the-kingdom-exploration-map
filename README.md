@@ -1,83 +1,71 @@
-# 塞尔达传说：王国之泪 · 海拉鲁探索地图
+# The Legend of Zelda: Tears of the Kingdom — Exploration Map
 
-**The Legend of Zelda: Tears of the Kingdom — Exploration Map**
+**English** · [简体中文](docs/zh-Hans/README.md) · [日本語](docs/ja/README.md) · [Español](docs/es/README.md) · [Русский](docs/ru/README.md) · [Français](docs/fr/README.md) · [Deutsch](docs/de/README.md)
 
-为 MacNativeGames 的《塞尔达传说：王国之泪》1.4.3 添加游戏内探索图层。地图随原版界面切换天空、地上和地底，并按游玩进度更新点位。支持 Apple 芯片 Mac，采用 MIT 许可证。
+An in-game exploration overlay for Tears of the Kingdom **1.4.3** on Apple silicon Macs running MacNativeGames. The overlay follows the game's Sky, Surface and Depths maps as you switch layers, pan and zoom. Activated shrines and Lightroots retain their native markers and fast travel controls.
 
-## 功能
+- **4,428 points in 35 categories.** Includes all **1,000 Korok Seeds** across 800 single-seed puzzles and 100 two-seed deliveries. The data records both ends of each delivery.
+- **Live progress.** Tracked pickups disappear when collected. Defeated respawning bosses and Lynels dim until they return. Turn off the progress filter to revisit completed locations.
+- **Custom filters.** Every category is enabled by default. Select individual categories and use temporary presets for landmarks, collectibles, or bosses and Lynels.
+- **Seven languages.** The in-game menu, shortcut panel, category names and installer prompts are available in English, Simplified Chinese, Japanese, Spanish, Russian, French and German.
 
-- **三层地图。** 点位跟随原版地图的层级、移动和缩放。已激活的神庙和树根继续使用原版图标，选择和传送走原版地图。
-- **35 个分类，4,428 个点位。** 包含完整的 1,000 颗呀哈哈种子，分别对应 800 个单颗点位和 100 组双颗搬运任务。搬运任务的地图数据记录起点和目的地。
-- **实时进度。** 支持进度追踪的呀哈哈、宝箱、防具等点位完成后隐藏。可刷新的 Boss 和人马被击败后变暗，游戏刷新后恢复亮度。需要回看已完成点位时，可以关闭进度过滤。
-- **分类和临时筛选。** 安装时默认全选，可逐项取消。进游戏后可继续调整，逐项勾选会保存。地标、收集点、Boss 和人马预设只影响本次浏览。
-- **按需操作面板。** 键盘和手柄共用「探索地图」面板。需要时才显示分类、快捷键和操作说明。
-- **本地生成。** 点位从玩家自己的 1.4.3 RomFS 生成。探索进度从运行中的游戏读取，游戏存档无需改动。
-
-| 分类 | 包含内容 |
+| Points of interest | Examples |
 | --- | --- |
-| 地标 | 152 座神庙、120 个树根、15 座鸟望台，以及神殿、村庄、驿站、地名和天空群岛 |
-| 洞穴与设施 | 洞穴入口、地洞入口、井、大妖精、30 台左纳乌制造机、旅馆、杂货店、防具店、染色店和珠宝店 |
-| 收集 | 呀哈哈、搬运呀哈哈、宝箱、防具、贤者的遗志、残旧的地图、依盖队设计图、龙之泪、魔犹伊和卡邦达立牌 |
-| 敌人 | 岩石巨人、独眼巨人、人马、古栗欧克、巨霸伽马、方块魔像和莫尔德拉吉克 |
+| Landmarks | 152 shrines, 120 Lightroots, 15 Skyview Towers, temples, settlements, stables and sky archipelagos |
+| Entrances and services | Caves, chasms, wells, Great Fairies, 30 Zonai Device Dispensers, inns and shops |
+| Collectibles | Koroks, chests, armor, Sage’s Wills, Old Maps, Yiga Schematics, Dragon’s Tears, Bubbulfrogs and Addison’s signs |
+| Enemies | Taluses, Hinoxes, Lynels, Gleeoks, Froxes, Flux Constructs and Moldugas |
 
-任务起点和动态采集资源尚未纳入。
+Quest starting points and dynamic gathering spots are outside the current coverage.
 
-## 游戏内操作
+## Install on Mac
 
-用默认键盘按键 **Tab** 或 **M** 打开地图，按 **3** 往天空切换，按 **5** 往地底切换。手柄用原版 **－** 打开地图，用十字键上下切换层级。
+You need an Apple silicon Mac, Python 3.14, a MacNativeGames source checkout, and your own base game and **1.4.3** update. Follow the [MacNativeGames build guide](https://github.com/ly05010419/MacNativeGames/blob/main/docs/install.md) for the game files and App build.
 
-打开地图后按 **⌘⇧L** 或短按手柄 **R3**（按下右摇杆）展开面板。也可以从 Mac 菜单栏进入 **显示 → 探索地图**。
-
-| 键盘快捷键 | 操作 |
-| --- | --- |
-| **⌘⇧M** | 开关整个探索图层 |
-| **⌘⇧P** | 开关进度过滤，关闭后可查看已收集点位 |
-| **⌘⇧L** | 展开或收起分类与完整快捷键说明 |
-| **⌘⇧1** | 临时只看地标 |
-| **⌘⇧2** | 临时只看收集点 |
-| **⌘⇧3** | 临时只看 Boss 和人马 |
-| **⌘⇧0** | 恢复自选分类 |
-
-再按一次当前预设，或退出原版地图，都会恢复已保存的分类。
-
-| 手柄操作 | 效果 |
-| --- | --- |
-| 短按 **R3** | 展开或收起面板 |
-| 长按 **R3** 约 0.7 秒 | 开关探索图层 |
-| 面板内十字键 **↑ / ↓** | 选择一行 |
-| 面板内十字键 **← / →** | 向前或向后翻页 |
-| 面板内按游戏确认键 | 切换选中项 |
-| 面板内按游戏返回键 | 收起面板 |
-
-面板也支持鼠标点击和滚轮。键盘用方向键选择或翻页、回车确认、Esc 收起。收起面板后，地图选择和传送继续使用原版操作。
-
-## 在 Mac 上安装
-
-准备 Apple 芯片 Mac、Python 3.14、干净的 MacNativeGames 源码目录，以及自己的游戏本体和 **1.4.3** 更新。从源码构建和更新 App 的步骤见 [MacNativeGames 中文安装指南](https://github.com/ly05010419/MacNativeGames/blob/main/docs/install.zh-CN.md)。
-
-1. 下载本项目，在项目目录运行以下命令，将探索图层接入 MacNativeGames。
+1. Download this project's source and run from its root directory:
 
    ```sh
    python3.14 mac/integrate.py "/path/to/MacNativeGames"
    ```
 
-2. 从接入后的源码构建或更新 **1.4.3 Mac App**。已有 App 时，先退出游戏，并从接入后的 MacNativeGames 源码目录运行更新流程。
-3. 用解包后的 1.4.3 RomFS 生成地图包。若用 MacNativeGames 的构建产物，RomFS 目录通常位于 `<工作目录>/totk/extracted/v143/romfs`，其中有 `index.json` 和 `romfs.bin`。
+2. Build or update the **1.4.3** Mac App from that MacNativeGames checkout. Quit the App first if you are updating. The integration can be run again over an existing installation made with this project's integration script.
+3. Generate the shared map pack from your extracted 1.4.3 RomFS. In the MacNativeGames build workspace it is typically under `totk/extracted/v143/romfs` and contains `index.json` and `romfs.bin`.
 
    ```sh
    python3.14 build_map.py "/path/to/romfs" map-points.json
    ```
 
-4. 安装地图包。按回车启用全部分类，或输入要取消的编号，用空格分隔。希望跳过选择时，可在命令末尾加 `--all`。
+4. Install the pack. Press Return to keep all categories, or enter the numbers you want to exclude, separated by spaces. Add `--all` to skip the prompt.
 
    ```sh
-   python3.14 mac/configure.py map-points.json
+   python3.14 mac/configure.py map-points.json --language en
    ```
 
-5. 启动游戏，打开原版地图。看到点位后，按 **⌘⇧L** 或短按 **R3** 查看分类和按键。
+   Use `--language auto` to follow the system, or choose `en`, `zh-Hans`, `ja`, `es`, `ru`, `fr` or `de`. Omit the flag to keep a saved language. After installation, switch anytime from **View → Exploration Map → Language** in the Mac menu bar. Switching languages there preserves your category selection and applies immediately.
 
-## 贡献与许可证
+The map pack is generated locally from your game files. Progress is read from the running game without editing saves.
 
-目前提供 MacNativeGames 的 macOS 适配。欢迎志愿者根据[数据格式和运行时接口](FORMAT.md)为其他平台实现适配器。
+## Controls
 
-源码采用 [MIT 许可证](LICENSE)，欢迎免费使用、修改、分享和移植。
+With the default bindings, **Tab** or **M** opens the native map. Press **3** toward Sky or **5** toward Depths. On a controller, open the map with **−** and change layers with **↑ / ↓**.
+
+| Keyboard | Action |
+| --- | --- |
+| **⌘⇧L** | Show or hide the category and shortcut panel |
+| **⌘⇧M** | Toggle the overlay |
+| **⌘⇧P** | Toggle the progress filter |
+| **⌘⇧1 / 2 / 3** | Temporarily show landmarks / collectibles / bosses and Lynels |
+| **⌘⇧0** | Restore custom categories |
+
+On a controller, tap **R3** to toggle the panel or hold it for about **0.7 seconds** to toggle the overlay. In the panel, use **↑ / ↓** to select a row, **← / →** to page, and the game's confirm and back buttons to toggle an option or close the panel. The panel also supports mouse and wheel input. On keyboard use the arrows, Return, and Esc. Select the same preset again or leave the game map to restore your custom categories.
+
+## Repository
+
+| Path | Purpose |
+| --- | --- |
+| [`docs/`](docs/) | Localized player guides and [map pack format](docs/map-pack.md) |
+| [`locales/`](locales/) | Translation catalogs shared by the installer and Mac UI |
+| [`mac/`](mac/) | MacNativeGames integration, installer and runtime |
+| [`build_map.py`](build_map.py) | Platform-independent map pack generator |
+
+The runtime adapter currently targets macOS. Community ports can use the [map pack format and runtime contract](docs/map-pack.md). Source code is available under the [MIT License](LICENSE).
