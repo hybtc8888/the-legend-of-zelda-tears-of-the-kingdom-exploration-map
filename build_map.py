@@ -95,6 +95,10 @@ def build(fs):
                     progress = known_bool(f"IsGetCaveMasterMedal.{name}")
                     if progress:
                         add(get_layer(prefix, position[1]), "魔犹伊", f"bubbul:{name}:{i}", position, progress)
+        for key, row in fs.byml(f"{prefix}RecycleBox/{field}.recyclebox.byml.zs").items():
+            position = row["Trans"]
+            add(get_layer(prefix, position[1]), "左纳乌制造机", f"dispenser:{key}", position,
+                contents=row["Contents"])
         for path in sorted(fs.index):
             if not path.startswith(prefix) or not path.endswith(".bcett.byml.zs") or "/Merged/" in path:
                 continue
@@ -162,14 +166,12 @@ def build(fs):
         elif name.startswith("Obj_AutoBuilderDraft"):
             category = "设计图石板"
             progress = known_bool(f"ReadyMadeAutoBuilderDraft.{name}.IsOwned")
-        elif name.startswith(("FldObj_Gashapon", "SpObj_Gashapon")) and not name.endswith("_Far"):
-            category = "左纳乌制造机"
         if category:
             add(layer, category, f"actor:{key}", position, progress, actor=name, item=drop)
 
     points = [point for layer in layers.values() for point in layer]
     counts = Counter(point["category"] for point in points)
-    expected = {"神庙": 152, "树根": 120, "鸟望台": 15, "呀哈哈": 800, "搬运呀哈哈": 100}
+    expected = {"神庙": 152, "树根": 120, "鸟望台": 15, "呀哈哈": 800, "搬运呀哈哈": 100, "左纳乌制造机": 30}
     if any(counts[key] != value for key, value in expected.items()):
         raise ValueError(f"Unexpected 1.4.3 counts: {dict(counts)}")
     if len({p["id"] for p in points}) != len(points) or sum(p.get("seeds", 0) for p in points) != 1000:
