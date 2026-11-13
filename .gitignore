@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+enum-probe*
+enum-validation*
+play_copy.py
+player_cheats.diagnostic-base
+local/
+totk-map-native
+new-build.log
+new-validation*
+install_local.py
+standalone-validation*/
