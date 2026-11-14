@@ -11,11 +11,22 @@
 @implementation TOTKMapPointsView {
     NSDictionary<NSString *, NSArray *> *_layers;
     NSSet<NSString *> *_categories;
-    NSArray<NSString *> *_categoryNames;
+    NSArray<NSString *> *_groupIDs;
+    NSDictionary<NSString *, NSSet<NSString *> *> *_categoriesByGroup;
+    NSDictionary<NSString *, NSString *> *_pointGroups, *_groupLabels;
+    NSMutableDictionary<NSString *, NSNumber *> *_groupOverrides;
+    NSDictionary<NSString *, NSColor *> *_groupColors;
     NSDictionary<NSString *, NSDictionary *> *_catalogs;
     NSDictionary<NSString *, NSString *> *_strings, *_categoryLabels;
     NSString *_language;
     NSMenuItem *_menuItem;
+    NSString *_layerDirectory;
+    NSMutableDictionary<NSString *, id> *_icons;
+    NSMutableDictionary<NSString *, NSImage *> *_tintedIcons;
+    NSDictionary<NSString *, NSValue *> *_coincidentOffsets;
+    NSPoint _pointer;
+    BOOL _pointerInside;
+    CFTimeInterval _lastPointerMove;
     NSInteger _preset, _selectedRow, _firstRow;
     BOOL _mapActive, _panelOpen;
     id _keyboardMonitor;
@@ -31,25 +42,37 @@
     NSMutableDictionary<NSString *, NSNumber *> *_progressIndexes;
 }
 
-static const NSInteger mapActionCount = 6;
+static const NSInteger mapActionCount = 3;
+static const unsigned short mapNumberKeys[] = {29,18,19,20,21,23,22,26,28};
 
-static NSArray<NSString *> *mapActionKeys(void) {
-    return @[@"show_layer", @"progress", @"landmarks", @"collectibles", @"bosses", @"custom"];
+static NSString *mapText(NSDictionary *point, NSString *key) {
+    id value = point[key];
+    return [value isKindOfClass:NSString.class] && [value length] ? value : nil;
 }
 
-static BOOL mapCategoryInPreset(NSString *category, NSInteger preset) {
-    switch (preset) {
-        case 1: return [@[@"神庙", @"树根", @"鸟望台", @"神殿", @"村庄", @"驿站", @"地名", @"天空群岛",
-                          @"洞穴入口", @"地洞入口", @"井", @"左纳乌制造机"] containsObject:category];
-        case 2: return [@[@"呀哈哈", @"搬运呀哈哈", @"宝箱", @"防具", @"贤者的遗志", @"残旧的地图",
-                          @"依盖队设计图", @"设计图石板", @"龙之泪", @"魔犹伊", @"卡邦达立牌"] containsObject:category];
-        case 3: return [@[@"人马", @"岩石巨人", @"古栗欧克", @"巨霸伽马", @"方块魔像",
-                          @"独眼巨人", @"莫尔德拉吉克"] containsObject:category];
-        default: return NO;
+static NSString *mapPointGroup(NSDictionary *point, NSDictionary *categories,
+                               NSArray *equipmentPrefixes, NSArray *equipmentSuffixes) {
+    NSString *category = point[@"category"];
+    if ([category isEqualToString:@"宝箱"]) {
+        NSString *item = mapText(point,@"item");
+        for (NSString *prefix in equipmentPrefixes)
+            if ([item hasPrefix:prefix]) return @"equipment";
+        if (!item) {
+            NSString *name = mapText(point,@"name"), *reward = mapText(point,@"reward");
+            for (NSString *suffix in equipmentSuffixes)
+                if ([name hasSuffix:suffix] || [reward hasSuffix:suffix] ||
+                    [name hasSuffix:[suffix stringByAppendingString:@"的宝箱"]]) return @"equipment";
+        }
     }
+    return categories[category] ?: @"collectibles";
+}
+
+static NSString *mapCoordinates(NSDictionary *point) {
+    return [NSString stringWithFormat:@"%+.0f, %+.0f", [point[@"x"] doubleValue], [point[@"north"] doubleValue]];
 }
 
 static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
+static NSString *const mapGroupSettingsFile = @"map-groups-v1.json";
 static NSString *const mapLanguageFile = @"map-language.txt";
 
 -(NSString *)labelForCategory:(NSString *)category {
@@ -73,13 +96,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSDictionary *catalog = _catalogs[effective];
     _strings = catalog[@"ui"];
     _categoryLabels = catalog[@"categories"];
-    NSLocale *locale = [NSLocale localeWithLocaleIdentifier:effective];
-    _categoryNames = [_categoryNames sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
-        NSString *left = [self labelForCategory:a], *right = [self labelForCategory:b];
-        NSComparisonResult order = [left compare:right options:NSCaseInsensitiveSearch | NSNumericSearch
-            range:NSMakeRange(0, left.length) locale:locale];
-        return order == NSOrderedSame ? [a compare:b] : order;
-    }];
+    _groupLabels = catalog[@"groups"];
     _selectedRow = _firstRow = 0;
 }
 
@@ -94,7 +111,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     const char *path = getenv("TOTK_MAP_POINTS");
     if (!path || !*path || !strcmp(path, "0")) return nil;
     NSData *data = [NSData dataWithContentsOfFile:@(path)];
-    if (!data.length || data.length > 2 * 1024 * 1024) return nil;
+    if (!data.length || data.length > 8 * 1024 * 1024) return nil;
     id input = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
     if (![input isKindOfClass:NSDictionary.class] || ![input[@"schema"] isEqual:@1]) return nil;
     NSDictionary *layers = input[@"layers"];
@@ -102,7 +119,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSMutableDictionary *validated = [NSMutableDictionary dictionary];
     for (NSString *name in @[@"surface", @"sky", @"depths"]) {
         NSArray *points = layers[name];
-        if (![points isKindOfClass:NSArray.class] || points.count > 4000) return nil;
+        if (![points isKindOfClass:NSArray.class] || points.count > 12000) return nil;
         for (id point in points) {
             if (![point isKindOfClass:NSDictionary.class] ||
                 ![point[@"category"] isKindOfClass:NSString.class] ||
@@ -114,12 +131,60 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     BOOL compatibleProgress = [input[@"build_id"] isEqual:@"277178B7DBA1B6D4949A84778D4ABC58B31B34F5"];
     if ((self = [super initWithFrame:frame])) {
         _layers = [validated copy];
+        _layerDirectory = [@(path) stringByDeletingLastPathComponent];
+        _icons = [NSMutableDictionary dictionary];
+        _tintedIcons = [NSMutableDictionary dictionary];
+        NSMutableDictionary *offsets = [NSMutableDictionary dictionary];
+        for (NSArray *points in _layers.allValues) {
+            NSMutableDictionary *groups = [NSMutableDictionary dictionary];
+            for (NSDictionary *point in points) {
+                NSArray *coordinate = @[point[@"x"], point[@"north"]];
+                NSMutableArray *group = groups[coordinate];
+                if (!group) groups[coordinate] = group = [NSMutableArray array];
+                NSString *identifier = mapText(point,@"id");
+                if (identifier) [group addObject:identifier];
+            }
+            for (NSArray *group in groups.allValues) {
+                if (group.count < 2) continue;
+                // Fan out markers that share exact coordinates so each can be hovered.
+                CGFloat radius = MAX(.85,group.count/(2*M_PI)*1.25);
+                for (NSUInteger i = 0; i < group.count; i++) {
+                    CGFloat angle = 2*M_PI*i/group.count;
+                    offsets[group[i]] = [NSValue valueWithPoint:NSMakePoint(radius*cos(angle),radius*sin(angle))];
+                }
+            }
+        }
+        _coincidentOffsets = [offsets copy];
         _layerNames = @[@"sky", @"surface", @"depths"];
+        _groupIDs = mapGroupIDs();
+        NSMutableDictionary *groupColors = [NSMutableDictionary dictionary];
+        for (NSUInteger i = 0; i < _groupIDs.count; ++i) {
+            unsigned rgb = mapGroupColors[i];
+            groupColors[_groupIDs[i]] = [NSColor colorWithSRGBRed:((rgb>>16)&255)/255.0
+                green:((rgb>>8)&255)/255.0 blue:(rgb&255)/255.0 alpha:1];
+        }
+        _groupColors = [groupColors copy];
         NSMutableSet *allCategories = [NSMutableSet set];
-        for (NSArray *points in _layers.allValues)
-            for (NSDictionary *point in points) [allCategories addObject:point[@"category"]];
+        NSMutableDictionary *groupMembers = [NSMutableDictionary dictionary];
+        NSMutableDictionary *pointGroups = [NSMutableDictionary dictionary];
+        NSDictionary *categoryGroups = mapCategoryGroups();
+        NSArray *equipmentPrefixes = mapEquipmentPrefixes(), *equipmentSuffixes = mapEquipmentSuffixes();
+        for (NSArray *points in _layers.allValues) {
+            for (NSDictionary *point in points) {
+                NSString *category = point[@"category"];
+                NSString *group = mapPointGroup(point,categoryGroups,equipmentPrefixes,equipmentSuffixes);
+                [allCategories addObject:category];
+                NSMutableSet *members = groupMembers[group];
+                if (!members) groupMembers[group] = members = [NSMutableSet set];
+                [members addObject:category];
+                NSString *identifier = mapText(point,@"id");
+                if (identifier) pointGroups[identifier] = group;
+            }
+        }
         _categories = [allCategories copy];
-        _categoryNames = allCategories.allObjects;
+        _categoriesByGroup = [groupMembers copy];
+        _pointGroups = [pointGroups copy];
+        _groupOverrides = [NSMutableDictionary dictionary];
         _catalogs = mapCatalogs();
         char language[32];
         NSString *choice = runtime_setting_word(mapLanguageFile.UTF8String, language, sizeof language)
@@ -134,6 +199,14 @@ static NSString *const mapLanguageFile = @"map-language.txt";
                 NSMutableSet *categories = [NSMutableSet set];
                 for (id name in names) if ([name isKindOfClass:NSString.class]) [categories addObject:name];
                 _categories = [categories copy];
+            }
+        }
+        if (runtime_setting_word(mapGroupSettingsFile.UTF8String,saved,sizeof saved)) {
+            NSData *settings = [NSData dataWithBytes:saved length:strlen(saved)];
+            id groups = [NSJSONSerialization JSONObjectWithData:settings options:0 error:NULL];
+            if ([groups isKindOfClass:NSDictionary.class]) {
+                for (NSString *group in _groupIDs)
+                    if ([groups[group] isKindOfClass:NSNumber.class]) _groupOverrides[group] = groups[group];
             }
         }
         _progressEnabled = compatibleProgress;
@@ -207,7 +280,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 }
 
 -(void)moveSelection:(NSInteger)delta {
-    NSInteger total = mapActionCount + (NSInteger)_categoryNames.count;
+    NSInteger total = mapActionCount + (NSInteger)_groupIDs.count;
     _selectedRow = MAX(0, MIN(total-1, _selectedRow+delta));
     _firstRow = MIN(_firstRow, _selectedRow);
     _firstRow = MAX(_firstRow, _selectedRow-[self visiblePanelRows]+1);
@@ -242,24 +315,39 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (_mapActive) [self selectPreset:item.tag];
 }
 
--(void)toggleCategory:(NSString *)name {
-    NSMutableSet *categories = [_categories mutableCopy];
-    if ([categories containsObject:name]) [categories removeObject:name];
-    else [categories addObject:name];
-    _categories = [categories copy];
+-(NSControlStateValue)groupState:(NSString *)group {
+    NSNumber *override = _groupOverrides[group];
+    if (override) return override.boolValue ? NSControlStateValueOn : NSControlStateValueOff;
+    NSSet *members = _categoriesByGroup[group];
+    if (![members intersectsSet:_categories]) return NSControlStateValueOff;
+    return [members isSubsetOfSet:_categories] ? NSControlStateValueOn : NSControlStateValueMixed;
+}
+
+-(NSString *)groupForPoint:(NSDictionary *)point {
+    return _pointGroups[mapText(point,@"id") ?: @""] ?: @"collectibles";
+}
+
+-(void)toggleGroup:(NSString *)group {
+    _groupOverrides[group] = @([self groupState:group] != NSControlStateValueOn);
     _preset = 0;
-    NSData *settings = [NSJSONSerialization dataWithJSONObject:categories.allObjects options:0 error:NULL];
+    _enabled = YES;
+    NSData *settings = [NSJSONSerialization dataWithJSONObject:_groupOverrides options:0 error:NULL];
     NSString *json = [[NSString alloc] initWithData:settings encoding:NSUTF8StringEncoding];
-    if (json) runtime_setting_save(mapSettingsFile.UTF8String,json.UTF8String,"map categories");
+    if (json) runtime_setting_save(mapGroupSettingsFile.UTF8String,json.UTF8String,"map groups");
+    [self refresh];
+    [self setNeedsDisplay:YES];
+}
+
+-(void)toggleGroupMenu:(NSMenuItem *)item {
+    [self toggleGroup:item.representedObject];
 }
 
 -(void)activateRow {
     switch (_selectedRow) {
         case 0: [self toggle:nil]; break;
         case 1: if (_progress.length) [self toggleProgress:nil]; break;
-        case 2: case 3: case 4: [self selectPreset:_selectedRow-1]; break;
-        case 5: [self selectPreset:0]; break;
-        default: [self toggleCategory:_categoryNames[_selectedRow-mapActionCount]]; break;
+        case 2: [self selectPreset:0]; break;
+        default: [self toggleGroup:_groupIDs[_selectedRow-mapActionCount]]; break;
     }
     [self setNeedsDisplay:YES];
 }
@@ -268,14 +356,23 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (event.window != self.window || ![self inputAvailable]) return NO;
     const NSEventModifierFlags modifiers = event.modifierFlags &
         (NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagControl | NSEventModifierFlagOption);
-    if (modifiers == (NSEventModifierFlagCommand | NSEventModifierFlagShift)) {
+    const NSEventModifierFlags solo = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    const NSEventModifierFlags toggle = NSEventModifierFlagCommand | NSEventModifierFlagOption;
+    if (_mapActive && (modifiers == solo || modifiers == toggle)) {
+        for (NSUInteger i = 0; i <= _groupIDs.count; ++i) {
+            if (event.keyCode != mapNumberKeys[i] || (i == 0 && modifiers == toggle)) continue;
+            if (!event.isARepeat) {
+                if (modifiers == solo) [self selectPreset:i];
+                else [self toggleGroup:_groupIDs[i-1]];
+            }
+            return YES;
+        }
+    }
+    if (modifiers == solo) {
         switch (event.keyCode) {
             case 46: if (!event.isARepeat) [self toggle:nil]; return YES;         /* M */
             case 35: if (!event.isARepeat && _progress.length) [self toggleProgress:nil]; return YES; /* P */
             case 37: if (!event.isARepeat) [self toggleHelp:nil]; return YES;    /* L */
-            case 18: case 19: case 20: case 29:                                /* 1, 2, 3, 0 */
-                if (!event.isARepeat && _mapActive) [self selectPreset:event.keyCode==29 ? 0 : event.keyCode-17];
-                return _mapActive;
             default: break;
         }
     }
@@ -299,7 +396,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (rowOffset < 0) return;
     NSInteger visible = (NSInteger)(rowOffset/24);
     NSInteger row = _firstRow+visible;
-    if (visible >= [self visiblePanelRows] || row >= mapActionCount+(NSInteger)_categoryNames.count) return;
+    if (visible >= [self visiblePanelRows] || row >= mapActionCount+(NSInteger)_groupIDs.count) return;
     _selectedRow = row;
     [self activateRow];
 }
@@ -326,6 +423,15 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     }
     _mapActive = active;
     BOOL inputActive = active && [self inputAvailable];
+    NSPoint mouse = inputActive ? [self convertPoint:self.window.mouseLocationOutsideOfEventStream fromView:nil] : NSZeroPoint;
+    BOOL inside = inputActive && NSPointInRect(mouse, self.bounds);
+    BOOL moved = inside && (!NSEqualPoints(mouse, _pointer) || !_pointerInside);
+    if (mouseHeld || !inside || (changed && !moved && now-_lastPointerMove > .25))
+        _lastPointerMove = 0;
+    if (moved && !mouseHeld) _lastPointerMove = now;
+    changed |= moved || inside != _pointerInside;
+    _pointerInside = inside;
+    _pointer = mouse;
     if (_panelOpen && (settingsOpen || textEntryOpen)) { _panelOpen = NO; changed = YES; }
     runtime_map_input_context(inputActive, _panelOpen);
     unsigned actions = runtime_map_input_events();
@@ -351,15 +457,12 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (changed && !hide) [self setNeedsDisplay:YES];
 }
 -(void)toggle:(NSMenuItem *)item {
-    NSString *name = item.representedObject;
-    if (name) {
-        [self toggleCategory:name];
-    } else {
-        _enabled = !_enabled;
-    }
+    (void)item;
+    _enabled = !_enabled;
     [self refresh];
     [self setNeedsDisplay:YES];
 }
+
 -(void)toggleProgress:(NSMenuItem *)item {
     (void)item;
     _progressEnabled = !_progressEnabled;
@@ -381,8 +484,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             ? NSControlStateValueOn : NSControlStateValueOff;
         return _mapActive && !settingsOpen && !textEntryOpen;
     }
-    item.state = (item.representedObject ? [_categories containsObject:item.representedObject] : _enabled)
-        ? NSControlStateValueOn : NSControlStateValueOff;
+    item.state = item.action == @selector(toggleGroupMenu:) ? [self groupState:item.representedObject] :
+        _enabled ? NSControlStateValueOn : NSControlStateValueOff;
     return YES;
 }
 -(void)addMenu:(NSMenu *)menu {
@@ -408,15 +511,29 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     help.target = self;
     [categories addItem:help];
     [categories addItem:NSMenuItem.separatorItem];
-    for (NSInteger i = 0; i < 4; i++) {
-        NSInteger tag = (i+1)%4;
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:_strings[mapActionKeys()[i+2]] action:@selector(presetMenu:)
-            keyEquivalent:[NSString stringWithFormat:@"%ld",(long)tag]];
+    NSMenu *visible = [[NSMenu alloc] initWithTitle:_strings[@"visible_groups"]];
+    NSMenuItem *visibleItem = [[NSMenuItem alloc] initWithTitle:visible.title action:nil keyEquivalent:@""];
+    visibleItem.submenu = visible;
+    [categories addItem:visibleItem];
+    for (NSUInteger digit = 1; digit <= _groupIDs.count; ++digit) {
+        NSString *group = _groupIDs[digit-1], *key = [@(digit) stringValue];
+        NSString *label = _groupLabels[group];
+        NSMenuItem *toggleGroup = [[NSMenuItem alloc] initWithTitle:label action:@selector(toggleGroupMenu:) keyEquivalent:key];
+        toggleGroup.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagOption;
+        toggleGroup.target = self;
+        toggleGroup.representedObject = group;
+        [visible addItem:toggleGroup];
+        NSString *solo = [NSString stringWithFormat:@"%@ · %@",_strings[@"solo"],label];
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:solo action:@selector(presetMenu:) keyEquivalent:key];
         item.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
         item.target = self;
-        item.tag = tag;
+        item.tag = digit;
         [categories addItem:item];
     }
+    NSMenuItem *restore = [[NSMenuItem alloc] initWithTitle:_strings[@"custom"] action:@selector(presetMenu:) keyEquivalent:@"0"];
+    restore.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    restore.target = self;
+    [categories addItem:restore];
     [categories addItem:NSMenuItem.separatorItem];
     NSMenu *language = [[NSMenu alloc] initWithTitle:_strings[@"language"]];
     NSMenuItem *languageItem = [[NSMenuItem alloc] initWithTitle:language.title action:nil keyEquivalent:@""];
@@ -429,12 +546,148 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         item.representedObject = code;
         [language addItem:item];
     }
-    [categories addItem:NSMenuItem.separatorItem];
-    for (NSString *name in _categoryNames) {
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:[self labelForCategory:name] action:@selector(toggle:) keyEquivalent:@""];
-        item.target = self;
-        item.representedObject = name;
-        [categories addItem:item];
+
+}
+
+-(NSString *)iconKeyForPoint:(NSDictionary *)point selected:(BOOL)selected {
+    NSString *name = (selected ? mapText(point,@"selected_icon") : nil) ?: mapText(point,@"icon");
+    const char *filename = name.UTF8String;
+    if (filename && strlen(filename) == 24 && strspn(filename,"0123456789abcdef") == 20 &&
+        !strcmp(filename+20,".png")) return name;
+
+    NSString *category = point[@"category"];
+    NSString *symbol = @{@"天空群岛":@"cloud.fill", @"地名":@"mappin.circle.fill",
+                         @"依盖队设计图":@"doc.text.fill", @"染色店":@"drop.fill"}[category];
+    return [@"symbol:" stringByAppendingString:symbol ?: @"mappin.circle.fill"];
+}
+
+-(NSImage *)iconForKey:(NSString *)key {
+    id cached = _icons[key];
+    if (cached) return cached == NSNull.null ? nil : cached;
+    NSImage *image;
+    if ([key hasPrefix:@"symbol:"]) {
+        image = [NSImage imageWithSystemSymbolName:[key substringFromIndex:7] accessibilityDescription:nil];
+    } else {
+        NSString *directory = [_layerDirectory stringByAppendingPathComponent:@"map-icons"];
+        image = [[NSImage alloc] initWithContentsOfFile:[directory stringByAppendingPathComponent:key]];
+    }
+    _icons[key] = image ?: NSNull.null;
+    return image;
+}
+
+-(NSImage *)iconForPoint:(NSDictionary *)point selected:(BOOL)selected {
+    NSString *key = [self iconKeyForPoint:point selected:selected];
+    return [self iconForKey:key] ?: [self iconForKey:@"symbol:mappin.circle.fill"];
+}
+
+-(NSImage *)tintedIconForPoint:(NSDictionary *)point group:(NSString *)group selected:(BOOL)selected {
+    NSString *key = [self iconKeyForPoint:point selected:selected];
+    NSString *cacheKey = [group stringByAppendingFormat:@"/%@",key];
+    NSImage *cached = _tintedIcons[cacheKey];
+    if (cached) return cached;
+
+    NSImage *original = [self iconForPoint:point selected:selected];
+    if (!original) return nil;
+    NSColor *color = _groupColors[group];
+    NSSize size = NSMakeSize(72,72);
+    CGFloat scale = 64 / MAX(original.size.width,original.size.height);
+    NSSize glyph = NSMakeSize(original.size.width*scale,original.size.height*scale);
+    NSRect bounds = NSMakeRect(0,0,size.width,size.height);
+    NSRect image = NSMakeRect((size.width-glyph.width)/2,(size.height-glyph.height)/2,glyph.width,glyph.height);
+    NSImage *tinted = [[NSImage alloc] initWithSize:size];
+    [tinted lockFocus];
+    [original drawInRect:image fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+    [color setFill];
+    NSRectFillUsingOperation(bounds,NSCompositingOperationSourceIn);
+    [tinted unlockFocus];
+    _tintedIcons[cacheKey] = tinted;
+    return tinted;
+}
+
+-(void)drawMarker:(NSDictionary *)point at:(NSPoint)position size:(CGFloat)size dim:(BOOL)dim selected:(BOOL)selected {
+    NSString *group = [self groupForPoint:point];
+    NSImage *icon = [self tintedIconForPoint:point group:group selected:selected];
+    if (!icon) return;
+    if (selected) size *= 1.23;
+    NSRect box = NSMakeRect(position.x-size/2, position.y-size/2, size, size);
+    [NSGraphicsContext saveGraphicsState];
+    NSShadow *edge = [NSShadow new];
+    edge.shadowColor = [NSColor colorWithWhite:.015 alpha:dim ? .50 : .95];
+    edge.shadowBlurRadius = selected ? 2.4 : 1.65;
+    edge.shadowOffset = NSMakeSize(0,-.7);
+    [edge set];
+    [icon drawInRect:box fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:dim ? .38 : 1];
+    [NSGraphicsContext restoreGraphicsState];
+}
+
+-(void)drawPointDetails:(NSDictionary *)point at:(NSPoint)anchor map:(NSRect)map panel:(NSRect)panel {
+    const CGFloat inset = 12;
+    CGFloat width = MIN(380, NSWidth(map)*.46);
+    if (width < 110 || NSHeight(map) < 90) return;
+    NSString *category = [self labelForCategory:point[@"category"]];
+    NSString *name = mapText(point,@"name") ?: category;
+    NSString *heading = [NSString stringWithFormat:@"%@  ·  %@", category, mapCoordinates(point)];
+    NSString *notes = mapText(point,@"notes");
+    NSString *reward = mapText(point,@"reward") ?: mapText(point,@"supplies");
+    NSDictionary *origin = [point[@"origin"] isKindOfClass:NSDictionary.class] ? point[@"origin"] : nil;
+    NSDictionary *destination = [point[@"destination"] isKindOfClass:NSDictionary.class] ? point[@"destination"] : nil;
+    NSMutableArray *lines = [NSMutableArray array];
+    if (notes) [lines addObject:notes];
+    if (reward && ![notes containsString:reward] &&
+        ![name containsString:reward])
+        [lines addObject:[NSString stringWithFormat:@"%@  %@",_strings[@"reward"],reward]];
+    if (destination) {
+        [lines addObject:[NSString stringWithFormat:@"%@  %@",_strings[@"route"],
+            [NSString stringWithFormat:@"%@  →  %@",mapCoordinates(origin ?: point),mapCoordinates(destination)]]];
+    }
+    NSString *body = [lines componentsJoinedByString:@"\n"];
+    NSMutableParagraphStyle *style = [NSMutableParagraphStyle new];
+    style.lineBreakMode = NSLineBreakByCharWrapping;
+    style.lineSpacing = 2;
+    NSDictionary *titleAttrs = @{NSFontAttributeName:[NSFont boldSystemFontOfSize:15],
+        NSForegroundColorAttributeName:NSColor.whiteColor, NSParagraphStyleAttributeName:style};
+    NSDictionary *headingAttrs = @{NSFontAttributeName:[NSFont systemFontOfSize:11],
+        NSForegroundColorAttributeName:[NSColor colorWithSRGBRed:.62 green:.85 blue:.94 alpha:1]};
+    CGFloat textWidth = width-2*inset;
+    NSStringDrawingOptions options = NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading;
+    CGFloat titleHeight = ceil([name boundingRectWithSize:NSMakeSize(textWidth,CGFLOAT_MAX)
+        options:options attributes:titleAttrs].size.height);
+    CGFloat maxBody = MAX(0, NSHeight(map)-titleHeight-62);
+    CGFloat fontSize = 13, bodyHeight = 0;
+    NSDictionary *bodyAttrs;
+    do {
+        bodyAttrs = @{NSFontAttributeName:[NSFont systemFontOfSize:fontSize],
+            NSForegroundColorAttributeName:[NSColor colorWithWhite:.95 alpha:1], NSParagraphStyleAttributeName:style};
+        bodyHeight = body.length ? ceil([body boundingRectWithSize:NSMakeSize(textWidth,CGFLOAT_MAX)
+            options:options attributes:bodyAttrs].size.height) : 0;
+        fontSize -= 1;
+    } while (bodyHeight > maxBody && fontSize >= 9);
+    bodyHeight = MIN(bodyHeight,maxBody);
+    CGFloat height = titleHeight+2*inset+18+(bodyHeight ? bodyHeight+7 : 0);
+    CGFloat x = MIN(NSMaxX(map)-width-7, anchor.x+18);
+    if (x <= anchor.x+8) x = MAX(NSMinX(map)+7, anchor.x-width-18);
+    CGFloat y = MAX(NSMinY(map)+7, MIN(NSMaxY(map)-height-7, anchor.y+18));
+    NSRect box = NSMakeRect(x,y,width,height);
+    if (NSContainsRect(NSInsetRect(box,-5,-5), NSMakeRect(anchor.x,anchor.y,1,1)) ||
+        NSIntersectsRect(box,panel)) {
+        CGFloat left = NSMaxX(panel)+8;
+        if (left+width <= NSMaxX(map)-7) box.origin.x = left;
+        else if (anchor.y-height-18 >= NSMinY(map)) box.origin.y = anchor.y-height-18;
+    }
+    NSBezierPath *surface = [NSBezierPath bezierPathWithRoundedRect:box xRadius:9 yRadius:9];
+    [[NSColor colorWithSRGBRed:.025 green:.07 blue:.115 alpha:.96] setFill];
+    [surface fill];
+    [[NSColor colorWithSRGBRed:.38 green:.72 blue:.84 alpha:.9] setStroke];
+    [surface stroke];
+    const CGFloat left = NSMinX(box)+inset;
+    CGFloat top = NSMaxY(box)-inset;
+    [name drawWithRect:NSMakeRect(left,top-titleHeight,textWidth,titleHeight) options:options attributes:titleAttrs];
+    top -= titleHeight+5;
+    [heading drawInRect:NSMakeRect(left,top-13,textWidth,15) withAttributes:headingAttrs];
+    if (bodyHeight) {
+        top -= 19;
+        [body drawWithRect:NSMakeRect(left,top-bodyHeight,textWidth,bodyHeight)
+            options:options|NSStringDrawingTruncatesLastVisibleLine attributes:bodyAttrs];
     }
 }
 
@@ -442,51 +695,71 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     (void)dirty;
     if (_camera.layer >= _layerNames.count) return;
     NSRect bounds = self.bounds;
-    CGFloat width = NSWidth(bounds), height = NSHeight(bounds);
-    CGFloat unit = fmin(width/1920, height/1080);
+    CGFloat unit = fmin(NSWidth(bounds)/1920, NSHeight(bounds)/1080);
     CGFloat pixelsPerMeter = unit * _camera.scale * 3;
     NSPoint center = NSMakePoint(NSMidX(bounds), NSMidY(bounds));
-    NSRect map = NSInsetRect(NSMakeRect(center.x - 960*unit, center.y - 540*unit, 1920*unit, 1080*unit),
-                             105*unit, 82*unit);
+    NSRect map = NSInsetRect(NSMakeRect(center.x-960*unit,center.y-540*unit,1920*unit,1080*unit),105*unit,82*unit);
+    if (NSIsEmptyRect(map)) return;
     NSArray *points = _enabled ? _layers[_layerNames[_camera.layer]] : @[];
-    CGFloat radius = fmax(2.3, 4*unit), gap = 19*unit;
-    NSRect cursor = NSMakeRect(center.x-55*unit, center.y-45*unit, 440*unit, 92*unit);
-    NSRect confirm = NSMakeRect(center.x-195*unit, center.y-325*unit, 390*unit, 240*unit);
-    NSRect layers = NSMakeRect(NSMinX(map), center.y-190*unit, 215*unit, 380*unit);
+    const CGFloat size = MAX(12, MIN(30, (15 + 31*_camera.scale)*unit));
+    const CGFloat gap = MAX(5,size*.7);
+    NSRect layers = NSMakeRect(NSMinX(map),center.y-190*unit,215*unit,380*unit);
+    NSRect panel = _panelOpen ? [self panelRect] : NSZeroRect;
+    BOOL pointer = _pointerInside && NSPointInRect(_pointer,map);
+    // Moving the mouse selects by pointer; panning the map can return selection to its reticle.
+    BOOL direct = pointer && _lastPointerMove > 0;
+    NSPoint target = direct ? _pointer : center;
+    CGFloat closest = MAX(12,size*.73);
+    BOOL hover = !_panelOpen && !settingsOpen && !textEntryOpen && self.window.isKeyWindow &&
+        !NSPointInRect(target,layers);
+    NSDictionary *selected = nil;
+    NSPoint anchor = NSZeroPoint;
+    BOOL selectedDim = NO;
+
     CGContextRef context = NSGraphicsContext.currentContext.CGContext;
     CGContextSaveGState(context);
-    CGContextClipToRect(context, map);
+    CGContextClipToRect(context,map);
     NSMutableSet *cells = [NSMutableSet set];
-    NSRect panel = _panelOpen ? [self panelRect] : NSZeroRect;
     for (NSDictionary *point in points) {
         NSString *category = point[@"category"];
-        if (_preset ? !mapCategoryInPreset(category,_preset) : ![_categories containsObject:category]) continue;
+        NSString *group = [self groupForPoint:point];
+        NSNumber *override = _groupOverrides[group];
+        BOOL accepted = _preset ? [_groupIDs[_preset-1] isEqualToString:group] :
+            override ? override.boolValue : [_categories containsObject:category];
+        if (!accepted) continue;
         NSNumber *index = _progressEnabled ? _progressIndexes[point[@"id"]] : nil;
         BOOL dim = NO;
         if (index) {
             const MapProgressPoint *state = _progress.bytes;
             MapProgressPoint progress = state[index.unsignedIntegerValue];
             if (progress.done && progress.kind!=MAP_PROGRESS_RESPAWN) continue;
-            dim = progress.done && progress.kind==MAP_PROGRESS_RESPAWN;
+            dim = progress.done;
         }
-        CGFloat dx = [point[@"x"] doubleValue] - _camera.x;
-        CGFloat dn = [point[@"north"] doubleValue] - _camera.north;
-        NSPoint p = NSMakePoint(center.x + dx * pixelsPerMeter, center.y + dn * pixelsPerMeter);
-        if (!NSPointInRect(p, map) || NSPointInRect(p, cursor) || NSPointInRect(p, confirm) || NSPointInRect(p, layers) || NSPointInRect(p, panel)) continue;
-        unsigned row = (unsigned)((p.y - NSMinY(map))/gap), col = (unsigned)((p.x - NSMinX(map))/gap);
-        NSNumber *cell = @(((uint64_t)row << 32) | col);
+        CGFloat dx = [point[@"x"] doubleValue]-_camera.x;
+        CGFloat dn = [point[@"north"] doubleValue]-_camera.north;
+        NSValue *stacked = _coincidentOffsets[mapText(point,@"id") ?: @""];
+        NSPoint offset = stacked.pointValue;
+        NSPoint p = NSMakePoint(center.x+dx*pixelsPerMeter+offset.x*size,
+                                center.y+dn*pixelsPerMeter+offset.y*size);
+        if (!NSPointInRect(p,map) || NSPointInRect(p,layers) || NSPointInRect(p,panel)) continue;
+        if (hover) {
+            CGFloat distance = hypot(p.x-target.x,p.y-target.y);
+            if (distance < closest) {
+                closest = distance;
+                selected = point;
+                selectedDim = dim;
+                anchor = p;
+            }
+        }
+        unsigned row = (unsigned)((p.y-NSMinY(map))/gap), col = (unsigned)((p.x-NSMinX(map))/gap);
+        NSNumber *cell = @(((uint64_t)row<<32)|col);
         if ([cells containsObject:cell]) continue;
         [cells addObject:cell];
-        if (dim) CGContextSetRGBFillColor(context,.5,.5,.5,.52);
-        else if ([category containsString:@"呀哈哈"]) CGContextSetRGBFillColor(context,.56,.87,.42,.95);
-        else if ([category isEqualToString:@"防具"]) CGContextSetRGBFillColor(context,.95,.54,.85,.95);
-        else if ([category isEqualToString:@"贤者的遗志"]) CGContextSetRGBFillColor(context,.55,.85,.99,.95);
-        else CGContextSetRGBFillColor(context,1,.72,.33,.95);
-        CGRect icon = CGRectMake(p.x-radius,p.y-radius,2*radius,2*radius);
-        CGContextSetRGBStrokeColor(context,.08,.1,.14,.9);
-        CGContextSetLineWidth(context,fmax(1,1.4*unit));
-        CGContextFillEllipseInRect(context,icon);
-        CGContextStrokeEllipseInRect(context,icon);
+        [self drawMarker:point at:p size:size dim:dim selected:NO];
+    }
+    if (selected) {
+        [self drawPointDetails:selected at:anchor map:map panel:panel];
+        [self drawMarker:selected at:anchor size:size dim:selectedDim selected:YES];
     }
     CGContextRestoreGState(context);
     if (_panelOpen) [self drawPanel];
@@ -512,8 +785,9 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         }
         [line drawInRect:NSMakeRect(x,top-50-i*18,width,18) withAttributes:attributes];
     }
-    NSArray *keys = @[@"⌘⇧M", @"⌘⇧P", @"⌘⇧1", @"⌘⇧2", @"⌘⇧3", @"⌘⇧0"];
-    NSInteger total = mapActionCount+(NSInteger)_categoryNames.count;
+    NSArray *actionKeys = @[@"⌘⇧M", @"⌘⇧P", @"⌘⇧0"];
+    NSArray *actionNames = @[@"show_layer", @"progress", @"custom"];
+    NSInteger total = mapActionCount+(NSInteger)_groupIDs.count;
     NSInteger end = MIN(total,_firstRow+[self visiblePanelRows]);
     for (NSInteger i = _firstRow; i < end; i++) {
         CGFloat y = top-96-(i-_firstRow+1)*24;
@@ -521,16 +795,32 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             [[NSColor colorWithSRGBRed:0.15 green:0.31 blue:0.41 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x-4,y,width+8,24) xRadius:5 yRadius:5] fill];
         }
-        NSString *category = i<mapActionCount ? nil : _categoryNames[i-mapActionCount];
-        NSString *name = category ? [self labelForCategory:category] : _strings[mapActionKeys()[i]];
-        BOOL checked = i==0 ? _enabled : i==1 ? _progressEnabled : i==5 ? !_preset
-            : i<mapActionCount ? _preset==i-1 : [_categories containsObject:category];
-        NSString *row = [NSString stringWithFormat:@"%@  %@",checked ? @"☑" : @"☐",name];
-        [row drawInRect:NSMakeRect(x,y+3,width-(category ? 0 : 62),20) withAttributes:label];
-        if (i<mapActionCount) [keys[i] drawInRect:NSMakeRect(x+width-56,y+3,56,20) withAttributes:help];
+        NSString *group = i < mapActionCount ? nil : _groupIDs[i-mapActionCount];
+        NSString *name = group ? _groupLabels[group] : _strings[actionNames[i]];
+        NSControlStateValue state = group ? [self groupState:group] :
+            (i==0 ? _enabled : i==1 ? _progressEnabled : !_preset) ? NSControlStateValueOn : NSControlStateValueOff;
+        NSString *mark = state == NSControlStateValueOn ? @"☑" : state == NSControlStateValueMixed ? @"◩" : @"☐";
+        NSString *row = [NSString stringWithFormat:@"%@  %@",mark,name];
+        CGFloat labelX = x;
+        NSString *shortcut = nil;
+        if (group) {
+            [_groupColors[group] setFill];
+            [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x+1,y+7,10,10) xRadius:2 yRadius:2] fill];
+            labelX += 19;
+            NSInteger digit = i-mapActionCount+1;
+            shortcut = [NSString stringWithFormat:@"⌘⌥%ld / ⌘⇧%ld",(long)digit,(long)digit];
+            if (_preset == digit)
+                row = [row stringByAppendingFormat:@"  ·  %@",_strings[@"solo"]];
+        } else {
+            shortcut = actionKeys[i];
+        }
+        CGFloat shortcutWidth = group ? 102 : 54;
+        [row drawInRect:NSMakeRect(labelX,y+3,MAX(0,x+width-shortcutWidth-labelX),20) withAttributes:label];
+        [shortcut drawInRect:NSMakeRect(x+width-shortcutWidth,y+3,shortcutWidth,20) withAttributes:help];
     }
-    [[NSString stringWithFormat:@"%ld / %ld",(long)(_selectedRow+1),(long)total]
-        drawInRect:NSMakeRect(x,NSMinY(panel)+7,width,17) withAttributes:help];
+    NSString *legend = [NSString stringWithFormat:@"⌘⌥1–8 %@   ·   ⌘⇧1–8 %@",
+        _strings[@"toggle_group"],_strings[@"solo"]];
+    [legend drawInRect:NSMakeRect(x,NSMinY(panel)+7,width,17) withAttributes:help];
 }
 @end
 

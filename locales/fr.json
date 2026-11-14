@@ -4,16 +4,18 @@
     "title": "Carte d’exploration",
     "show_layer": "Afficher la couche d’exploration",
     "progress": "Filtrer selon la progression",
-    "landmarks": "Lieux uniquement",
-    "collectibles": "Objets à collecter uniquement",
-    "bosses": "Boss et Lynels uniquement",
-    "custom": "Rétablir les catégories choisies",
+    "custom": "Rétablir les groupes visibles",
     "controls": "Catégories et raccourcis",
     "language": "Langue",
     "automatic": "Langue du système",
     "help_layer": "⌘⇧L / R3 : fermer · Maintenir R3 : afficher ou masquer",
     "help_keyboard": "Flèches : naviguer · Entrée : valider · Échap : fermer",
-    "help_gamepad": "Croix : naviguer · Valider : basculer · Retour : fermer"
+    "help_gamepad": "Croix : naviguer · Valider : basculer · Retour : fermer",
+    "reward": "Objet",
+    "route": "Trajet de transport",
+    "visible_groups": "Groupes visibles",
+    "solo": "Isoler",
+    "toggle_group": "Basculer"
   },
   "installer": {
     "description": "Installez la carte d’exploration et choisissez ses catégories.",
@@ -61,6 +63,33 @@
     "杂货店": "Magasins généraux",
     "防具店": "Boutiques d’armures",
     "染色店": "Teintureries",
-    "珠宝店": "Bijouteries"
+    "珠宝店": "Bijouteries",
+    "八爪怪": "Octoroks",
+    "升级素材": "Matériaux d’amélioration",
+    "发光青蛙": "Grenouilles lumineuses",
+    "古代研究所": "Laboratoires antiques",
+    "女神雕像": "Statues de la déesse",
+    "弓与箭": "Arcs et flèches",
+    "怪物营地": "Camps de monstres",
+    "情节挑战": "Aventures secondaires",
+    "武器": "Armes",
+    "滑翔伞布料": "Tissus de paravoile",
+    "烹饪点": "Marmites",
+    "特殊NPC": "Personnages spéciaux",
+    "盾牌": "Boucliers",
+    "矿场": "Mines",
+    "迷你挑战": "Quêtes secondaires",
+    "集市": "Marchés",
+    "龙": "Dragons"
+  },
+  "groups": {
+    "landmarks": "Lieux et exploration",
+    "collectibles": "Objets et matériaux",
+    "enemies": "Ennemis et boss",
+    "chests": "Coffres",
+    "koroks": "Korogus",
+    "equipment": "Équipement",
+    "quests": "Quêtes",
+    "facilities": "Villages et services"
   }
 }

@@ -4,16 +4,18 @@
     "title": "Erkundungskarte",
     "show_layer": "Erkundungsebene anzeigen",
     "progress": "Nach Fortschritt filtern",
-    "landmarks": "Nur Orientierungspunkte",
-    "collectibles": "Nur Sammelobjekte",
-    "bosses": "Nur Bosse und Leunen",
-    "custom": "Eigene Kategorien wiederherstellen",
+    "custom": "Sichtbare Gruppen wiederherstellen",
     "controls": "Kategorien und Tastenkürzel",
     "language": "Sprache",
     "automatic": "Systemsprache",
     "help_layer": "⌘⇧L / R3: schließen · R3 halten: Ebene ein/aus",
     "help_keyboard": "Pfeile: bewegen/blättern · Eingabe: wählen · Esc: schließen",
-    "help_gamepad": "Steuerkreuz: blättern · Bestätigen: umschalten · Zurück: schließen"
+    "help_gamepad": "Steuerkreuz: blättern · Bestätigen: umschalten · Zurück: schließen",
+    "reward": "Gegenstand",
+    "route": "Transportroute",
+    "visible_groups": "Sichtbare Gruppen",
+    "solo": "Einzeln",
+    "toggle_group": "Umschalten"
   },
   "installer": {
     "description": "Installiere die Erkundungskarte und wähle ihre Kategorien.",
@@ -61,6 +63,33 @@
     "杂货店": "Gemischtwarenläden",
     "防具店": "Rüstungsläden",
     "染色店": "Färbereien",
-    "珠宝店": "Juweliere"
+    "珠宝店": "Juweliere",
+    "八爪怪": "Oktoroks",
+    "升级素材": "Verbesserungsmaterialien",
+    "发光青蛙": "Leuchtfrösche",
+    "古代研究所": "Antikinstitute",
+    "女神雕像": "Göttinnenstatuen",
+    "弓与箭": "Bögen und Pfeile",
+    "怪物营地": "Monsterlager",
+    "情节挑战": "Episoden",
+    "武器": "Waffen",
+    "滑翔伞布料": "Parasegel-Stoffe",
+    "烹饪点": "Kochtöpfe",
+    "特殊NPC": "Besondere Personen",
+    "盾牌": "Schilde",
+    "矿场": "Minen",
+    "迷你挑战": "Nebenaufgaben",
+    "集市": "Märkte",
+    "龙": "Drachen"
+  },
+  "groups": {
+    "landmarks": "Orte & Erkundung",
+    "collectibles": "Sammelobjekte & Materialien",
+    "enemies": "Gegner & Bosse",
+    "chests": "Schatztruhen",
+    "koroks": "Krogs",
+    "equipment": "Ausrüstung",
+    "quests": "Aufgaben",
+    "facilities": "Siedlungen & Dienste"
   }
 }

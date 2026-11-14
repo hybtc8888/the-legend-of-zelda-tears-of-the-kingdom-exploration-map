@@ -1,0 +1,10 @@
+[
+  {"id":"landmarks", "color":"40dcff", "categories":["神庙","树根","鸟望台","神殿","地名","天空群岛","洞穴入口","地洞入口","井","矿场"]},
+  {"id":"collectibles", "color":"df8aff", "categories":["贤者的遗志","残旧的地图","依盖队设计图","设计图石板","龙之泪","魔犹伊","卡邦达立牌","升级素材","发光青蛙","滑翔伞布料","龙"]},
+  {"id":"enemies", "color":"ff6382", "categories":["人马","岩石巨人","古栗欧克","巨霸伽马","方块魔像","独眼巨人","莫尔德拉吉克","八爪怪","怪物营地"]},
+  {"id":"chests", "color":"ffcd48", "categories":["宝箱"]},
+  {"id":"koroks", "color":"82ef58", "categories":["呀哈哈","搬运呀哈哈"]},
+  {"id":"equipment", "color":"ff8b51", "categories":["防具","武器","弓与箭","盾牌"]},
+  {"id":"quests", "color":"83aaff", "categories":["迷你挑战","情节挑战"]},
+  {"id":"facilities", "color":"dce6ef", "categories":["村庄","驿站","左纳乌制造机","大妖精","旅馆","杂货店","防具店","染色店","珠宝店","古代研究所","女神雕像","烹饪点","特殊NPC","集市"]}
+]

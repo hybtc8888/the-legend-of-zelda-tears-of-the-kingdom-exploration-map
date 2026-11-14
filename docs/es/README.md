@@ -4,7 +4,7 @@
 
 Este mod añade una capa al mapa del juego **1.4.3** en MacNativeGames para Mac con chip de Apple. Los puntos siguen las vistas del cielo, la superficie y el subsuelo, así como el desplazamiento y el zoom. Los santuarios y las raíces activadas conservan sus iconos y el viaje rápido del juego.
 
-- **4428 puntos en 35 categorías**, con las **1000 semillas de kolog**: 800 pruebas de una semilla y 100 encargos de dos. El paquete registra la salida y el destino de cada traslado.
+- **4428 puntos en el paquete base**, con las **1000 semillas de kolog**: 800 pruebas de una semilla y 100 encargos de dos. El paquete registra la salida y el destino de cada traslado.
 - Incluye 152 santuarios, 120 raíces, 15 atalayas y 30 generadores de artilugios zonnan, además de cuevas, pozos, cofres, armaduras, lágrimas de dragón y jefes.
 - Los puntos con seguimiento se ocultan al completarlos. Los jefes y centaleones que reaparecen se atenúan al derrotarlos y recuperan el brillo al volver. Puedes desactivar el filtro para ver los puntos completados.
 - Todas las categorías están activadas al principio. Puedes guardar tu selección y usar filtros temporales de lugares, coleccionables o jefes y centaleones. Los inicios de misiones y los recursos de recolección dinámicos quedan fuera de la cobertura actual.
@@ -29,8 +29,11 @@ Abre el mapa del juego con **Tab / M** o el botón **−** del mando. Cambia de 
 | **⌘⇧L** | Mostrar u ocultar el panel de categorías y atajos |
 | **⌘⇧M** | Activar o desactivar la capa |
 | **⌘⇧P** | Activar o desactivar el filtro de progreso |
-| **⌘⇧1 / 2 / 3** | Ver temporalmente lugares / coleccionables / jefes y centaleones |
-| **⌘⇧0** | Restaurar las categorías elegidas |
+| **⌘⌥1–8** | Alternar el grupo y guardar su visibilidad |
+| **⌘⇧1–8** | Mostrar solo ese grupo temporalmente |
+| **⌘⇧0** | Restaurar la visibilidad guardada |
+
+1. Lugares y exploración · 2. Coleccionables y materiales · 3. Enemigos y jefes · 4. Cofres · 5. Kologs · 6. Equipo · 7. Misiones · 8. Pueblos y servicios
 
 Pulsa **R3** brevemente para abrir o cerrar el panel o mantenlo pulsado unos 0,7 segundos para alternar la capa. En el panel, la cruceta selecciona filas con arriba/abajo y cambia de página con izquierda/derecha. Usa los botones de confirmar y volver del juego. También puedes usar flechas, Intro y Esc, o el ratón y la rueda. Elige otra vez el mismo filtro temporal o sal del mapa para restaurar tus categorías.
 

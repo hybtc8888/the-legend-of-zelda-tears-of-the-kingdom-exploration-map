@@ -4,16 +4,18 @@
     "title": "Mapa de exploración",
     "show_layer": "Mostrar capa de exploración",
     "progress": "Filtrar según el progreso",
-    "landmarks": "Solo lugares",
-    "collectibles": "Solo coleccionables",
-    "bosses": "Solo jefes y centaleones",
-    "custom": "Restaurar categorías elegidas",
+    "custom": "Restaurar grupos visibles",
     "controls": "Categorías y atajos",
     "language": "Idioma",
     "automatic": "Idioma del sistema",
     "help_layer": "⌘⇧L / R3: cerrar · Mantén R3: cambiar capa",
     "help_keyboard": "Flechas: mover/paginar · Intro: aceptar · Esc: cerrar",
-    "help_gamepad": "Cruceta: navegar · Confirmar: alternar · Volver: cerrar"
+    "help_gamepad": "Cruceta: navegar · Confirmar: alternar · Volver: cerrar",
+    "reward": "Objeto",
+    "route": "Ruta de traslado",
+    "visible_groups": "Grupos visibles",
+    "solo": "Solo",
+    "toggle_group": "Alternar"
   },
   "installer": {
     "description": "Instala el mapa de exploración y elige sus categorías.",
@@ -61,6 +63,33 @@
     "杂货店": "Tiendas de artículos",
     "防具店": "Tiendas de armaduras",
     "染色店": "Tintorerías",
-    "珠宝店": "Joyerías"
+    "珠宝店": "Joyerías",
+    "八爪怪": "Octoroks",
+    "升级素材": "Materiales de mejora",
+    "发光青蛙": "Ranas luminosas",
+    "古代研究所": "Laboratorios ancestrales",
+    "女神雕像": "Estatuas de la diosa",
+    "弓与箭": "Arcos y flechas",
+    "怪物营地": "Campamentos de monstruos",
+    "情节挑战": "Aventuras secundarias",
+    "武器": "Armas",
+    "滑翔伞布料": "Telas de paravela",
+    "烹饪点": "Cacerolas",
+    "特殊NPC": "Personajes especiales",
+    "盾牌": "Escudos",
+    "矿场": "Minas",
+    "迷你挑战": "Misiones secundarias",
+    "集市": "Mercados",
+    "龙": "Dragones"
+  },
+  "groups": {
+    "landmarks": "Lugares y exploración",
+    "collectibles": "Coleccionables y materiales",
+    "enemies": "Enemigos y jefes",
+    "chests": "Cofres",
+    "koroks": "Kologs",
+    "equipment": "Equipo",
+    "quests": "Misiones",
+    "facilities": "Pueblos y servicios"
   }
 }

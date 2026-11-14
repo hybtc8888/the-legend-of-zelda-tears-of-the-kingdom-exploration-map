@@ -4,7 +4,7 @@
 
 Diese Mod ergänzt die Karte von **1.4.3** in MacNativeGames auf Macs mit Apple-Chip um eine Erkundungsebene. Die Markierungen folgen der Spielkarte beim Wechsel zwischen Himmel, Oberfläche und Untergrund sowie beim Verschieben und Zoomen. Aktivierte Schreine und Lichtwurzeln behalten ihre Spielsymbole und Schnellreise.
 
-- **4.428 Punkte in 35 Kategorien**, darunter alle **1.000 Krog-Samen**: 800 Einzelrätsel und 100 Transporte mit je zwei Samen. Das Kartenpaket speichert Start und Ziel jedes Transports.
+- **4.428 Punkte im Basispaket**, darunter alle **1.000 Krog-Samen**: 800 Einzelrätsel und 100 Transporte mit je zwei Samen. Das Kartenpaket speichert Start und Ziel jedes Transports.
 - Enthalten sind 152 Schreine, 120 Lichtwurzeln, 15 Kartografietürme, 30 Sonau-Kapselspender sowie Höhlen, Brunnen, Truhen, Rüstungen, Drachentränen und Bosse.
 - Punkte mit Fortschrittserfassung verschwinden nach Abschluss. Besiegte Bosse und Leunen, die wieder erscheinen können, werden abgedunkelt und danach wieder normal angezeigt. Schalte den Fortschrittsfilter aus, um abgeschlossene Punkte zu sehen.
 - Alle Kategorien sind anfangs aktiv. Speichere deine Auswahl oder nutze vorübergehende Filter für Orientierungspunkte, Sammelobjekte oder Bosse und Leunen. Quest-Startpunkte und dynamische Sammelstellen sind derzeit nicht enthalten.
@@ -29,8 +29,11 @@ Wechsle die Sprache in der Mac-Menüleiste unter **View → Erkundungskarte → 
 | **⌘⇧L** | Kategorien und Tastenkürzel ein- oder ausblenden |
 | **⌘⇧M** | Erkundungsebene ein- oder ausschalten |
 | **⌘⇧P** | Fortschrittsfilter umschalten |
-| **⌘⇧1 / 2 / 3** | Vorübergehend Orientierungspunkte / Sammelobjekte / Bosse und Leunen anzeigen |
-| **⌘⇧0** | Eigene Kategorien wiederherstellen |
+| **⌘⌥1–8** | Gruppe umschalten und Sichtbarkeit speichern |
+| **⌘⇧1–8** | Vorübergehend nur diese Gruppe anzeigen |
+| **⌘⇧0** | Gespeicherte Gruppensichtbarkeit wiederherstellen |
+
+1. Orte & Erkundung · 2. Sammelobjekte & Materialien · 3. Gegner & Bosse · 4. Schatztruhen · 5. Krogs · 6. Ausrüstung · 7. Aufgaben · 8. Siedlungen & Dienste
 
 Drücke **R3** kurz, um das Panel zu öffnen oder zu schließen, oder halte es etwa 0,7 Sekunden, um die Ebene umzuschalten. Im Panel wählst du mit hoch/runter eine Zeile, blätterst mit links/rechts und verwendest die Bestätigen- und Zurück-Tasten des Spiels. Auch Pfeiltasten, Eingabe, Esc, Maus und Mausrad funktionieren. Wähle denselben Filter erneut oder verlasse die Karte, um zu deiner gespeicherten Auswahl zurückzukehren.
 

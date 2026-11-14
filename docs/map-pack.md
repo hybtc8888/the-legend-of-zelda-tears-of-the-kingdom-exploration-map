@@ -16,3 +16,9 @@ A point may include `progress`. Its `key` is a decimal string to preserve 64-bit
 | `respawn` | 64-bit resettable state | Dim when true, restore after reset |
 
 The adapter provides the current layer, visibility, map center, scale, viewport, and a read-only progress snapshot. When progress is unavailable, show normal markers. Fast travel uses the game's own map controls, and native markers take precedence for activated travel points. All categories start enabled; a platform adapter saves the user's selection locally.
+
+## Optional marker details
+
+A detailed pack can add `name`, `notes`, `reward` and `supplies` strings. `notes` contains plain text with line breaks. Coordinates keep the same meaning as the base pack. Some guide markers have only horizontal coordinates. For a delivery whose marker is at its destination, `origin` records the departure coordinates.
+
+`icon` and `selected_icon` point to PNG files in a sibling `map-icons/` directory. Names contain 20 lowercase hexadecimal characters followed by `.png`. Render a category symbol if an icon is unavailable. `source_id` records the original site's point ID when a game point and a guide point were matched.
