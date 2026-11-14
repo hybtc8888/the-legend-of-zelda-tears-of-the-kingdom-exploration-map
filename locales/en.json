@@ -3,8 +3,7 @@
   "ui": {
     "title": "Exploration Map",
     "show_layer": "Show exploration overlay",
-    "progress": "Filter by progress",
-    "custom": "Restore visible groups",
+    "progress": "Show collected and completed points",
     "controls": "Categories and shortcuts",
     "language": "Language",
     "automatic": "System language",
@@ -14,8 +13,8 @@
     "reward": "Item",
     "route": "Delivery route",
     "visible_groups": "Visible groups",
-    "solo": "Solo",
-    "toggle_group": "Toggle"
+    "toggle_group": "Toggle",
+    "back": "Back"
   },
   "installer": {
     "description": "Install the exploration map and choose its categories.",

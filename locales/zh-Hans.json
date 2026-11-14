@@ -3,8 +3,7 @@
   "ui": {
     "title": "探索地图",
     "show_layer": "显示探索图层",
-    "progress": "按探索进度隐藏或变暗",
-    "custom": "恢复常用分组",
+    "progress": "显示已收集和已完成的点位",
     "controls": "分类与快捷键",
     "language": "语言",
     "automatic": "跟随系统",
@@ -14,8 +13,8 @@
     "reward": "可获得",
     "route": "搬运路线",
     "visible_groups": "显示分组",
-    "solo": "只看",
-    "toggle_group": "开关"
+    "toggle_group": "开关",
+    "back": "返回"
   },
   "installer": {
     "description": "安装探索地图并选择分类。",

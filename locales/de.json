@@ -3,8 +3,7 @@
   "ui": {
     "title": "Erkundungskarte",
     "show_layer": "Erkundungsebene anzeigen",
-    "progress": "Nach Fortschritt filtern",
-    "custom": "Sichtbare Gruppen wiederherstellen",
+    "progress": "Gesammelte und abgeschlossene Punkte anzeigen",
     "controls": "Kategorien und Tastenkürzel",
     "language": "Sprache",
     "automatic": "Systemsprache",
@@ -14,8 +13,8 @@
     "reward": "Gegenstand",
     "route": "Transportroute",
     "visible_groups": "Sichtbare Gruppen",
-    "solo": "Einzeln",
-    "toggle_group": "Umschalten"
+    "toggle_group": "Umschalten",
+    "back": "Zurück"
   },
   "installer": {
     "description": "Installiere die Erkundungskarte und wähle ihre Kategorien.",

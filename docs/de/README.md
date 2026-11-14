@@ -7,7 +7,7 @@ Diese Mod ergänzt die Karte von **1.4.3** in MacNativeGames auf Macs mit Apple-
 - **4.428 Punkte im Basispaket**, darunter alle **1.000 Krog-Samen**: 800 Einzelrätsel und 100 Transporte mit je zwei Samen. Das Kartenpaket speichert Start und Ziel jedes Transports.
 - Enthalten sind 152 Schreine, 120 Lichtwurzeln, 15 Kartografietürme, 30 Sonau-Kapselspender sowie Höhlen, Brunnen, Truhen, Rüstungen, Drachentränen und Bosse.
 - Punkte mit Fortschrittserfassung verschwinden nach Abschluss. Besiegte Bosse und Leunen, die wieder erscheinen können, werden abgedunkelt und danach wieder normal angezeigt. Schalte den Fortschrittsfilter aus, um abgeschlossene Punkte zu sehen.
-- Alle Kategorien sind anfangs aktiv. Speichere deine Auswahl oder nutze vorübergehende Filter für Orientierungspunkte, Sammelobjekte oder Bosse und Leunen. Quest-Startpunkte und dynamische Sammelstellen sind derzeit nicht enthalten.
+- Alle acht Gruppen sind standardmäßig aktiv. Die Sichtbarkeit wird für jede Gruppe einzeln gespeichert.
 
 ## Installation auf dem Mac
 
@@ -20,6 +20,8 @@ Du brauchst einen Mac mit Apple-Chip, Python 3.14, den MacNativeGames-Quellcode,
 
 Wechsle die Sprache in der Mac-Menüleiste unter **View → Erkundungskarte → Sprache**. `--language auto` folgt der Systemsprache. Die Kategorieauswahl bleibt beim Sprachwechsel erhalten. Das Kartenpaket wird aus deinen Spieldateien erstellt. Der Fortschritt wird aus dem laufenden Spiel gelesen, ohne Spielstände zu bearbeiten.
 
+Du kannst die Sprache auch über **语言Language：…** am Ende des Bedienfelds ändern. Die Markerdetails erscheinen in der gewählten Sprache, wenn das Paket die Übersetzungen enthält.
+
 ## Steuerung
 
 Öffne die Spielkarte mit **Tab / M** oder **−** am Controller. Wechsle mit **3 / 5** oder **↑ / ↓** am Steuerkreuz die Ebene.
@@ -30,11 +32,9 @@ Wechsle die Sprache in der Mac-Menüleiste unter **View → Erkundungskarte → 
 | **⌘⇧M** | Erkundungsebene ein- oder ausschalten |
 | **⌘⇧P** | Fortschrittsfilter umschalten |
 | **⌘⌥1–8** | Gruppe umschalten und Sichtbarkeit speichern |
-| **⌘⇧1–8** | Vorübergehend nur diese Gruppe anzeigen |
-| **⌘⇧0** | Gespeicherte Gruppensichtbarkeit wiederherstellen |
 
 1. Orte & Erkundung · 2. Sammelobjekte & Materialien · 3. Gegner & Bosse · 4. Schatztruhen · 5. Krogs · 6. Ausrüstung · 7. Aufgaben · 8. Siedlungen & Dienste
 
-Drücke **R3** kurz, um das Panel zu öffnen oder zu schließen, oder halte es etwa 0,7 Sekunden, um die Ebene umzuschalten. Im Panel wählst du mit hoch/runter eine Zeile, blätterst mit links/rechts und verwendest die Bestätigen- und Zurück-Tasten des Spiels. Auch Pfeiltasten, Eingabe, Esc, Maus und Mausrad funktionieren. Wähle denselben Filter erneut oder verlasse die Karte, um zu deiner gespeicherten Auswahl zurückzukehren.
+Drücke **R3** kurz, um das Panel zu öffnen oder zu schließen, oder halte es etwa 0,7 Sekunden, um die Ebene umzuschalten. Im Panel wählst du mit hoch/runter eine Zeile, blätterst mit links/rechts und verwendest die Bestätigen- und Zurück-Tasten des Spiels. Auch Pfeiltasten, Eingabe, Esc, Maus und Mausrad funktionieren.
 
 [Englische Kartenpaket-Spezifikation](../map-pack.md) · [MIT-Lizenz](../../LICENSE)

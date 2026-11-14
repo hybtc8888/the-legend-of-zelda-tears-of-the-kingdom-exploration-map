@@ -3,8 +3,7 @@
   "ui": {
     "title": "探索マップ",
     "show_layer": "探索レイヤーを表示",
-    "progress": "進行状況で絞り込む",
-    "custom": "表示グループに戻す",
+    "progress": "収集済み・完了済みの地点を表示",
     "controls": "カテゴリとショートカット",
     "language": "言語",
     "automatic": "システムの言語",
@@ -14,8 +13,8 @@
     "reward": "入手アイテム",
     "route": "運搬ルート",
     "visible_groups": "表示グループ",
-    "solo": "絞込",
-    "toggle_group": "切替"
+    "toggle_group": "切替",
+    "back": "戻る"
   },
   "installer": {
     "description": "探索マップをインストールし、表示するカテゴリを選びます。",

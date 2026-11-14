@@ -3,8 +3,7 @@
   "ui": {
     "title": "Mapa de exploración",
     "show_layer": "Mostrar capa de exploración",
-    "progress": "Filtrar según el progreso",
-    "custom": "Restaurar grupos visibles",
+    "progress": "Mostrar puntos recogidos o completados",
     "controls": "Categorías y atajos",
     "language": "Idioma",
     "automatic": "Idioma del sistema",
@@ -14,8 +13,8 @@
     "reward": "Objeto",
     "route": "Ruta de traslado",
     "visible_groups": "Grupos visibles",
-    "solo": "Solo",
-    "toggle_group": "Alternar"
+    "toggle_group": "Alternar",
+    "back": "Volver"
   },
   "installer": {
     "description": "Instala el mapa de exploración y elige sus categorías.",

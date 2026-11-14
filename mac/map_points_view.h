@@ -17,8 +17,9 @@
     NSMutableDictionary<NSString *, NSNumber *> *_groupOverrides;
     NSDictionary<NSString *, NSColor *> *_groupColors;
     NSDictionary<NSString *, NSDictionary *> *_catalogs;
+    NSDictionary<NSString *, NSDictionary *> *_markerCatalogs, *_markerText;
     NSDictionary<NSString *, NSString *> *_strings, *_categoryLabels;
-    NSString *_language;
+    NSString *_language, *_effectiveLanguage;
     NSMenuItem *_menuItem;
     NSString *_layerDirectory;
     NSMutableDictionary<NSString *, id> *_icons;
@@ -27,8 +28,9 @@
     NSPoint _pointer;
     BOOL _pointerInside;
     CFTimeInterval _lastPointerMove;
-    NSInteger _preset, _selectedRow, _firstRow;
-    BOOL _mapActive, _panelOpen;
+    NSInteger _selectedRow, _firstRow;
+    BOOL _mapActive, _panelOpen, _languagePanel;
+    NSArray<NSString *> *_languageChoices;
     id _keyboardMonitor;
     NSArray<NSString *> *_layerNames;
     NSTimer *_timer;
@@ -36,14 +38,17 @@
     uint64_t _seen;
     CFTimeInterval _lastUpdate;
     BOOL _enabled;
-    BOOL _progressEnabled;
+    BOOL _showCompleted;
+    BOOL _allKoroksCollected;
+    NSUInteger _korokSeeds;
+    NSArray<NSNumber *> *_korokProgressIndexes;
     CFTimeInterval _lastProgressRead;
     NSMutableData *_progress;
     NSMutableDictionary<NSString *, NSNumber *> *_progressIndexes;
 }
 
-static const NSInteger mapActionCount = 3;
-static const unsigned short mapNumberKeys[] = {29,18,19,20,21,23,22,26,28};
+static const NSInteger mapActionCount = 2;
+static const unsigned short mapNumberKeys[] = {18,19,20,21,23,22,26,28};
 
 static NSString *mapText(NSDictionary *point, NSString *key) {
     id value = point[key];
@@ -73,10 +78,16 @@ static NSString *mapCoordinates(NSDictionary *point) {
 
 static NSString *const mapSettingsFile = @"map-points-selection-v1.json";
 static NSString *const mapGroupSettingsFile = @"map-groups-v1.json";
+static NSString *const mapCompletedSettingsFile = @"map-show-completed.txt";
 static NSString *const mapLanguageFile = @"map-language.txt";
 
 -(NSString *)labelForCategory:(NSString *)category {
     return _categoryLabels[category] ?: category;
+}
+
+-(NSString *)detailText:(NSDictionary *)point key:(NSString *)key {
+    NSString *original = mapText(point,key);
+    return original ? mapText(_markerText[key],original) ?: original : nil;
 }
 
 -(void)useLanguage:(NSString *)language {
@@ -94,17 +105,27 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         }
     }
     NSDictionary *catalog = _catalogs[effective];
+    _effectiveLanguage = effective;
     _strings = catalog[@"ui"];
     _categoryLabels = catalog[@"categories"];
     _groupLabels = catalog[@"groups"];
+    _markerText = _markerCatalogs[effective];
     _selectedRow = _firstRow = 0;
 }
 
--(void)changeLanguage:(NSMenuItem *)item {
-    [self useLanguage:item.representedObject];
+-(void)applyLanguage:(NSString *)code {
+    [self useLanguage:code];
     runtime_setting_save(mapLanguageFile.UTF8String, _language.UTF8String, "map language");
     [self updateMenu];
     [self setNeedsDisplay:YES];
+}
+
+-(void)changeLanguage:(NSMenuItem *)item {
+    [self applyLanguage:item.representedObject];
+}
+
+-(NSString *)nameForLanguage:(NSString *)code {
+    return _catalogs[code][@"name"] ?: _strings[@"automatic"];
 }
 
 -(instancetype)initWithFrame:(NSRect)frame {
@@ -131,6 +152,19 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     BOOL compatibleProgress = [input[@"build_id"] isEqual:@"277178B7DBA1B6D4949A84778D4ABC58B31B34F5"];
     if ((self = [super initWithFrame:frame])) {
         _layers = [validated copy];
+        NSMutableDictionary *markerCatalogs = [NSMutableDictionary dictionary];
+        if ([input[@"marker_text"] isKindOfClass:NSDictionary.class]) {
+            for (NSString *code in mapLanguages()) {
+                NSDictionary *locale = input[@"marker_text"][code];
+                if (![locale isKindOfClass:NSDictionary.class]) continue;
+                NSMutableDictionary *fields = [NSMutableDictionary dictionary];
+                for (NSString *key in @[@"name", @"notes", @"reward", @"supplies"]) {
+                    if ([locale[key] isKindOfClass:NSDictionary.class]) fields[key] = locale[key];
+                }
+                markerCatalogs[code] = [fields copy];
+            }
+        }
+        _markerCatalogs = [markerCatalogs copy];
         _layerDirectory = [@(path) stringByDeletingLastPathComponent];
         _icons = [NSMutableDictionary dictionary];
         _tintedIcons = [NSMutableDictionary dictionary];
@@ -186,6 +220,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         _pointGroups = [pointGroups copy];
         _groupOverrides = [NSMutableDictionary dictionary];
         _catalogs = mapCatalogs();
+        _languageChoices = [@[@"auto"] arrayByAddingObjectsFromArray:mapLanguages()];
         char language[32];
         NSString *choice = runtime_setting_word(mapLanguageFile.UTF8String, language, sizeof language)
             ? [@(language) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : @"auto";
@@ -209,7 +244,9 @@ static NSString *const mapLanguageFile = @"map-language.txt";
                     if ([groups[group] isKindOfClass:NSNumber.class]) _groupOverrides[group] = groups[group];
             }
         }
-        _progressEnabled = compatibleProgress;
+        _showCompleted = !runtime_setting_word(mapCompletedSettingsFile.UTF8String,saved,sizeof saved) ||
+            ![[@(saved) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] isEqualToString:@"off"];
+        NSMutableArray<NSNumber *> *korokIndexes = [NSMutableArray array];
         _progress = [NSMutableData data];
         _progressIndexes = [NSMutableDictionary dictionary];
         if (compatibleProgress) {
@@ -239,10 +276,20 @@ static NSString *const mapLanguageFile = @"map-language.txt";
                 } else if ([kind isEqual:@"guid"]) progress.kind=MAP_PROGRESS_GUID;
                 else if ([kind isEqual:@"respawn"]) progress.kind=MAP_PROGRESS_RESPAWN;
                 else continue;
-                _progressIndexes[identifier] = @(_progress.length/sizeof progress);
+                NSNumber *index = @(_progress.length/sizeof progress);
+                _progressIndexes[identifier] = index;
                 [_progress appendBytes:&progress length:sizeof progress];
+                if ([_pointGroups[identifier] isEqualToString:@"koroks"] &&
+                    [point[@"seeds"] isKindOfClass:NSNumber.class]) {
+                    NSInteger seeds = [point[@"seeds"] integerValue];
+                    if (seeds == 1 || seeds == 2) {
+                        _korokSeeds += (NSUInteger)seeds;
+                        [korokIndexes addObject:index];
+                    }
+                }
             }
         }
+        _korokProgressIndexes = [korokIndexes copy];
         self.hidden = YES;
         self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         self.wantsLayer = YES;
@@ -259,6 +306,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     return self;
 }
 -(void)dealloc {
+    runtime_map_hide_native_koroks(0);
     [_timer invalidate];
     if (_keyboardMonitor) [NSEvent removeMonitor:_keyboardMonitor];
 }
@@ -279,8 +327,29 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     return MAX(1, (NSInteger)((NSHeight([self panelRect])-126)/24));
 }
 
+-(NSInteger)panelRowCount {
+    return _languagePanel ? (NSInteger)_languageChoices.count+1 : mapActionCount+(NSInteger)_groupIDs.count+1;
+}
+
+-(NSString *)languageRowTitle {
+    NSString *name = [_effectiveLanguage isEqualToString:@"zh-Hans"] ? @"中文" : [self nameForLanguage:_effectiveLanguage];
+    return [@"语言Language：" stringByAppendingString:name];
+}
+
+-(void)closeLanguagePanel {
+    _languagePanel = NO;
+    _firstRow = 0;
+    _selectedRow = [self panelRowCount]-1;
+    [self moveSelection:0];
+}
+
+-(void)backFromPanel {
+    if (_languagePanel) [self closeLanguagePanel];
+    else [self setPanelOpen:NO];
+}
+
 -(void)moveSelection:(NSInteger)delta {
-    NSInteger total = mapActionCount + (NSInteger)_groupIDs.count;
+    NSInteger total = [self panelRowCount];
     _selectedRow = MAX(0, MIN(total-1, _selectedRow+delta));
     _firstRow = MIN(_firstRow, _selectedRow);
     _firstRow = MAX(_firstRow, _selectedRow-[self visiblePanelRows]+1);
@@ -293,6 +362,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 
 -(void)setPanelOpen:(BOOL)open {
     _panelOpen = open;
+    _languagePanel = NO;
     if (open) { _selectedRow = _firstRow = 0; runtime_input_clear_window(); }
     runtime_map_input_context(_mapActive && [self inputAvailable], _panelOpen);
     [self refresh];
@@ -302,17 +372,6 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 -(void)toggleHelp:(id)sender {
     (void)sender;
     if (_mapActive) [self setPanelOpen:!_panelOpen];
-}
-
--(void)selectPreset:(NSInteger)preset {
-    _preset = _preset == preset ? 0 : preset;
-    if (_preset) _enabled = YES;
-    [self refresh];
-    [self setNeedsDisplay:YES];
-}
-
--(void)presetMenu:(NSMenuItem *)item {
-    if (_mapActive) [self selectPreset:item.tag];
 }
 
 -(NSControlStateValue)groupState:(NSString *)group {
@@ -327,10 +386,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     return _pointGroups[mapText(point,@"id") ?: @""] ?: @"collectibles";
 }
 
--(void)toggleGroup:(NSString *)group {
-    _groupOverrides[group] = @([self groupState:group] != NSControlStateValueOn);
-    _preset = 0;
-    _enabled = YES;
+-(void)saveGroupVisibility {
     NSData *settings = [NSJSONSerialization dataWithJSONObject:_groupOverrides options:0 error:NULL];
     NSString *json = [[NSString alloc] initWithData:settings encoding:NSUTF8StringEncoding];
     if (json) runtime_setting_save(mapGroupSettingsFile.UTF8String,json.UTF8String,"map groups");
@@ -338,15 +394,32 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     [self setNeedsDisplay:YES];
 }
 
+-(void)toggleGroup:(NSString *)group {
+    _groupOverrides[group] = @([self groupState:group] != NSControlStateValueOn);
+    _enabled = YES;
+    [self saveGroupVisibility];
+}
+
 -(void)toggleGroupMenu:(NSMenuItem *)item {
     [self toggleGroup:item.representedObject];
 }
 
 -(void)activateRow {
+    if (_languagePanel) {
+        if (_selectedRow) [self applyLanguage:_languageChoices[_selectedRow-1]];
+        [self closeLanguagePanel];
+        return;
+    }
+    if (_selectedRow == [self panelRowCount]-1) {
+        _languagePanel = YES;
+        _firstRow = 0;
+        _selectedRow = (NSInteger)[_languageChoices indexOfObject:_language]+1;
+        [self moveSelection:0];
+        return;
+    }
     switch (_selectedRow) {
         case 0: [self toggle:nil]; break;
-        case 1: if (_progress.length) [self toggleProgress:nil]; break;
-        case 2: [self selectPreset:0]; break;
+        case 1: if (_progress.length) [self toggleCompleted:nil]; break;
         default: [self toggleGroup:_groupIDs[_selectedRow-mapActionCount]]; break;
     }
     [self setNeedsDisplay:YES];
@@ -356,22 +429,19 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (event.window != self.window || ![self inputAvailable]) return NO;
     const NSEventModifierFlags modifiers = event.modifierFlags &
         (NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagControl | NSEventModifierFlagOption);
-    const NSEventModifierFlags solo = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    const NSEventModifierFlags shift = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     const NSEventModifierFlags toggle = NSEventModifierFlagCommand | NSEventModifierFlagOption;
-    if (_mapActive && (modifiers == solo || modifiers == toggle)) {
-        for (NSUInteger i = 0; i <= _groupIDs.count; ++i) {
-            if (event.keyCode != mapNumberKeys[i] || (i == 0 && modifiers == toggle)) continue;
-            if (!event.isARepeat) {
-                if (modifiers == solo) [self selectPreset:i];
-                else [self toggleGroup:_groupIDs[i-1]];
-            }
+    if (_mapActive && modifiers == toggle) {
+        for (NSUInteger i = 0; i < _groupIDs.count; ++i) {
+            if (event.keyCode != mapNumberKeys[i]) continue;
+            if (!event.isARepeat) [self toggleGroup:_groupIDs[i]];
             return YES;
         }
     }
-    if (modifiers == solo) {
+    if (modifiers == shift) {
         switch (event.keyCode) {
             case 46: if (!event.isARepeat) [self toggle:nil]; return YES;         /* M */
-            case 35: if (!event.isARepeat && _progress.length) [self toggleProgress:nil]; return YES; /* P */
+            case 35: if (!event.isARepeat && _progress.length) [self toggleCompleted:nil]; return YES; /* P */
             case 37: if (!event.isARepeat) [self toggleHelp:nil]; return YES;    /* L */
             default: break;
         }
@@ -383,7 +453,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         case 123: [self moveSelection:-[self visiblePanelRows]]; break;
         case 124: [self moveSelection:[self visiblePanelRows]]; break;
         case 36: case 49: if (!event.isARepeat) [self activateRow]; break;
-        case 53: [self setPanelOpen:NO]; break;
+        case 53: [self backFromPanel]; break;
         default: break;
     }
     return YES;
@@ -396,7 +466,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     if (rowOffset < 0) return;
     NSInteger visible = (NSInteger)(rowOffset/24);
     NSInteger row = _firstRow+visible;
-    if (visible >= [self visiblePanelRows] || row >= mapActionCount+(NSInteger)_groupIDs.count) return;
+    if (visible >= [self visiblePanelRows] || row >= [self panelRowCount]) return;
     _selectedRow = row;
     [self activateRow];
 }
@@ -419,7 +489,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     BOOL active = _seen && _camera.visible && now - _lastUpdate <= 0.15 && _camera.layer < _layerNames.count;
     if (!active && _mapActive) {
         _panelOpen = NO;
-        _preset = 0;
+        _languagePanel = NO;
     }
     _mapActive = active;
     BOOL inputActive = active && [self inputAvailable];
@@ -432,13 +502,25 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     changed |= moved || inside != _pointerInside;
     _pointerInside = inside;
     _pointer = mouse;
-    if (_panelOpen && (settingsOpen || textEntryOpen)) { _panelOpen = NO; changed = YES; }
+    if (_panelOpen && (settingsOpen || textEntryOpen)) {
+        _panelOpen = _languagePanel = NO;
+        changed = YES;
+    }
     runtime_map_input_context(inputActive, _panelOpen);
     unsigned actions = runtime_map_input_events();
     if (inputActive && actions) {
         if (actions & MAP_PAD_LAYER) { _enabled = !_enabled; changed = YES; }
-        if (actions & MAP_PAD_CLOSE) { _panelOpen = NO; changed = YES; }
-        else if (actions & MAP_PAD_OPEN) { _panelOpen = YES; _selectedRow = _firstRow = 0; runtime_input_clear_window(); changed = YES; }
+        if (actions & MAP_PAD_CLOSE) {
+            if (_languagePanel) [self closeLanguagePanel];
+            else _panelOpen = NO;
+            changed = YES;
+        } else if (actions & MAP_PAD_OPEN) {
+            _panelOpen = YES;
+            _languagePanel = NO;
+            _selectedRow = _firstRow = 0;
+            runtime_input_clear_window();
+            changed = YES;
+        }
         if (_panelOpen && !(actions & MAP_PAD_OPEN)) {
             if (actions & MAP_PAD_UP) [self moveSelection:-1];
             if (actions & MAP_PAD_DOWN) [self moveSelection:1];
@@ -448,10 +530,21 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         }
         runtime_map_input_context(inputActive, _panelOpen);
     }
+    runtime_map_hide_native_koroks(_enabled);
     BOOL hide = !active || (!_enabled && !_panelOpen);
-    if (active && _enabled && _progressEnabled && (self.hidden || now-_lastProgressRead>=0.5)) {
+    if (active && _enabled && _progress.length && (self.hidden || now-_lastProgressRead>=0.5)) {
         _lastProgressRead = now;
-        changed |= runtime_map_progress(_progress.mutableBytes,_progress.length/sizeof(MapProgressPoint));
+        if (runtime_map_progress(_progress.mutableBytes,_progress.length/sizeof(MapProgressPoint))) {
+            changed = YES;
+            const MapProgressPoint *state = _progress.bytes;
+            _allKoroksCollected = _korokSeeds == 1000 && _korokProgressIndexes.count == 900;
+            for (NSNumber *index in _korokProgressIndexes) {
+                if (!state[index.unsignedIntegerValue].done) {
+                    _allKoroksCollected = NO;
+                    break;
+                }
+            }
+        }
     }
     if (self.hidden != hide) { self.hidden = hide; changed = YES; }
     if (changed && !hide) [self setNeedsDisplay:YES];
@@ -463,25 +556,24 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     [self setNeedsDisplay:YES];
 }
 
--(void)toggleProgress:(NSMenuItem *)item {
+-(void)toggleCompleted:(NSMenuItem *)item {
     (void)item;
-    _progressEnabled = !_progressEnabled;
-    _lastProgressRead = 0;
-    [self refresh];
+    _showCompleted = !_showCompleted;
+    runtime_setting_save(mapCompletedSettingsFile.UTF8String,_showCompleted ? "on" : "off","show completed map points");
     [self setNeedsDisplay:YES];
 }
+
 -(BOOL)validateMenuItem:(NSMenuItem *)item {
     if (item.action == @selector(changeLanguage:)) {
         item.state = [_language isEqualToString:item.representedObject] ? NSControlStateValueOn : NSControlStateValueOff;
         return YES;
     }
-    if (item.action == @selector(toggleProgress:)) {
-        item.state = _progressEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleCompleted:)) {
+        item.state = _showCompleted ? NSControlStateValueOn : NSControlStateValueOff;
         return _progress.length>0;
     }
-    if (item.action == @selector(toggleHelp:) || item.action == @selector(presetMenu:)) {
-        item.state = (item.action == @selector(toggleHelp:) ? _panelOpen : item.tag && _preset==item.tag)
-            ? NSControlStateValueOn : NSControlStateValueOff;
+    if (item.action == @selector(toggleHelp:)) {
+        item.state = _panelOpen ? NSControlStateValueOn : NSControlStateValueOff;
         return _mapActive && !settingsOpen && !textEntryOpen;
     }
     item.state = item.action == @selector(toggleGroupMenu:) ? [self groupState:item.representedObject] :
@@ -502,7 +594,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     toggle.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     toggle.target = self;
     [categories addItem:toggle];
-    NSMenuItem *progress = [[NSMenuItem alloc] initWithTitle:_strings[@"progress"] action:@selector(toggleProgress:) keyEquivalent:@"p"];
+    NSMenuItem *progress = [[NSMenuItem alloc] initWithTitle:_strings[@"progress"] action:@selector(toggleCompleted:) keyEquivalent:@"p"];
     progress.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
     progress.target = self;
     [categories addItem:progress];
@@ -523,24 +615,14 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         toggleGroup.target = self;
         toggleGroup.representedObject = group;
         [visible addItem:toggleGroup];
-        NSString *solo = [NSString stringWithFormat:@"%@ · %@",_strings[@"solo"],label];
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:solo action:@selector(presetMenu:) keyEquivalent:key];
-        item.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
-        item.target = self;
-        item.tag = digit;
-        [categories addItem:item];
     }
-    NSMenuItem *restore = [[NSMenuItem alloc] initWithTitle:_strings[@"custom"] action:@selector(presetMenu:) keyEquivalent:@"0"];
-    restore.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
-    restore.target = self;
-    [categories addItem:restore];
     [categories addItem:NSMenuItem.separatorItem];
     NSMenu *language = [[NSMenu alloc] initWithTitle:_strings[@"language"]];
     NSMenuItem *languageItem = [[NSMenuItem alloc] initWithTitle:language.title action:nil keyEquivalent:@""];
     languageItem.submenu = language;
     [categories addItem:languageItem];
-    for (NSString *code in [@[@"auto"] arrayByAddingObjectsFromArray:mapLanguages()]) {
-        NSString *title = _catalogs[code][@"name"] ?: _strings[@"automatic"];
+    for (NSString *code in _languageChoices) {
+        NSString *title = [self nameForLanguage:code];
         NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(changeLanguage:) keyEquivalent:@""];
         item.target = self;
         item.representedObject = code;
@@ -625,10 +707,10 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     CGFloat width = MIN(380, NSWidth(map)*.46);
     if (width < 110 || NSHeight(map) < 90) return;
     NSString *category = [self labelForCategory:point[@"category"]];
-    NSString *name = mapText(point,@"name") ?: category;
+    NSString *name = [self detailText:point key:@"name"] ?: category;
     NSString *heading = [NSString stringWithFormat:@"%@  ·  %@", category, mapCoordinates(point)];
-    NSString *notes = mapText(point,@"notes");
-    NSString *reward = mapText(point,@"reward") ?: mapText(point,@"supplies");
+    NSString *notes = [self detailText:point key:@"notes"];
+    NSString *reward = [self detailText:point key:@"reward"] ?: [self detailText:point key:@"supplies"];
     NSDictionary *origin = [point[@"origin"] isKindOfClass:NSDictionary.class] ? point[@"origin"] : nil;
     NSDictionary *destination = [point[@"destination"] isKindOfClass:NSDictionary.class] ? point[@"destination"] : nil;
     NSMutableArray *lines = [NSMutableArray array];
@@ -719,22 +801,25 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     CGContextRef context = NSGraphicsContext.currentContext.CGContext;
     CGContextSaveGState(context);
     CGContextClipToRect(context,map);
-    NSMutableSet *cells = [NSMutableSet set];
+    NSMutableDictionary<NSNumber *, NSArray *> *markers = [NSMutableDictionary dictionary];
     for (NSDictionary *point in points) {
         NSString *category = point[@"category"];
         NSString *group = [self groupForPoint:point];
         NSNumber *override = _groupOverrides[group];
-        BOOL accepted = _preset ? [_groupIDs[_preset-1] isEqualToString:group] :
-            override ? override.boolValue : [_categories containsObject:category];
+        BOOL accepted = override ? override.boolValue : [_categories containsObject:category];
         if (!accepted) continue;
-        NSNumber *index = _progressEnabled ? _progressIndexes[point[@"id"]] : nil;
-        BOOL dim = NO;
+        NSNumber *index = _progressIndexes[point[@"id"]];
+        BOOL dim = NO, respawns = NO;
         if (index) {
             const MapProgressPoint *state = _progress.bytes;
             MapProgressPoint progress = state[index.unsignedIntegerValue];
-            if (progress.done && progress.kind!=MAP_PROGRESS_RESPAWN) continue;
             dim = progress.done;
+            respawns = progress.kind == MAP_PROGRESS_RESPAWN;
+        } else if (_allKoroksCollected && [group isEqualToString:@"koroks"]) {
+            // The source can contain duplicate Korok annotations with no game flag.
+            dim = YES;
         }
+        if (dim && !respawns && !_showCompleted) continue;
         CGFloat dx = [point[@"x"] doubleValue]-_camera.x;
         CGFloat dn = [point[@"north"] doubleValue]-_camera.north;
         NSValue *stacked = _coincidentOffsets[mapText(point,@"id") ?: @""];
@@ -753,10 +838,12 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         }
         unsigned row = (unsigned)((p.y-NSMinY(map))/gap), col = (unsigned)((p.x-NSMinX(map))/gap);
         NSNumber *cell = @(((uint64_t)row<<32)|col);
-        if ([cells containsObject:cell]) continue;
-        [cells addObject:cell];
-        [self drawMarker:point at:p size:size dim:dim selected:NO];
+        NSArray *prior = markers[cell];
+        if (!prior || (!dim && [prior[2] boolValue]))
+            markers[cell] = @[point, [NSValue valueWithPoint:p], @(dim)];
     }
+    for (NSArray *marker in markers.objectEnumerator)
+        [self drawMarker:marker[0] at:[marker[1] pointValue] size:size dim:[marker[2] boolValue] selected:NO];
     if (selected) {
         [self drawPointDetails:selected at:anchor map:map panel:panel];
         [self drawMarker:selected at:anchor size:size dim:selectedDim selected:YES];
@@ -773,7 +860,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSDictionary *help = @{NSFontAttributeName:[NSFont systemFontOfSize:12], NSForegroundColorAttributeName:[NSColor colorWithWhite:0.85 alpha:1]};
     NSDictionary *label = @{NSFontAttributeName:[NSFont systemFontOfSize:14], NSForegroundColorAttributeName:NSColor.whiteColor};
     CGFloat x = NSMinX(panel)+16, top = NSMaxY(panel), width = NSWidth(panel)-32;
-    [_strings[@"title"] drawInRect:NSMakeRect(x,top-30,width,24) withAttributes:title];
+    [_strings[_languagePanel ? @"language" : @"title"] drawInRect:NSMakeRect(x,top-30,width,24) withAttributes:title];
     NSArray *helpKeys = @[@"help_layer", @"help_keyboard", @"help_gamepad"];
     for (NSUInteger i = 0; i < helpKeys.count; i++) {
         NSString *line = _strings[helpKeys[i]];
@@ -785,9 +872,9 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         }
         [line drawInRect:NSMakeRect(x,top-50-i*18,width,18) withAttributes:attributes];
     }
-    NSArray *actionKeys = @[@"⌘⇧M", @"⌘⇧P", @"⌘⇧0"];
-    NSArray *actionNames = @[@"show_layer", @"progress", @"custom"];
-    NSInteger total = mapActionCount+(NSInteger)_groupIDs.count;
+    NSArray *actionKeys = @[@"⌘⇧M", @"⌘⇧P"];
+    NSArray *actionNames = @[@"show_layer", @"progress"];
+    NSInteger total = [self panelRowCount];
     NSInteger end = MIN(total,_firstRow+[self visiblePanelRows]);
     for (NSInteger i = _firstRow; i < end; i++) {
         CGFloat y = top-96-(i-_firstRow+1)*24;
@@ -795,10 +882,22 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             [[NSColor colorWithSRGBRed:0.15 green:0.31 blue:0.41 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x-4,y,width+8,24) xRadius:5 yRadius:5] fill];
         }
+        if (_languagePanel) {
+            NSString *code = i ? _languageChoices[i-1] : nil;
+            NSString *name = code ? [self nameForLanguage:code] : _strings[@"back"];
+            NSString *mark = code ? ([_language isEqualToString:code] ? @"●" : @"○") : @"‹";
+            [[NSString stringWithFormat:@"%@  %@",mark,name]
+                drawInRect:NSMakeRect(x,y+3,width,20) withAttributes:label];
+            continue;
+        }
+        if (i == total-1) {
+            [[self languageRowTitle] drawInRect:NSMakeRect(x,y+3,width,20) withAttributes:label];
+            continue;
+        }
         NSString *group = i < mapActionCount ? nil : _groupIDs[i-mapActionCount];
         NSString *name = group ? _groupLabels[group] : _strings[actionNames[i]];
         NSControlStateValue state = group ? [self groupState:group] :
-            (i==0 ? _enabled : i==1 ? _progressEnabled : !_preset) ? NSControlStateValueOn : NSControlStateValueOff;
+            (i==0 ? _enabled : _showCompleted) ? NSControlStateValueOn : NSControlStateValueOff;
         NSString *mark = state == NSControlStateValueOn ? @"☑" : state == NSControlStateValueMixed ? @"◩" : @"☐";
         NSString *row = [NSString stringWithFormat:@"%@  %@",mark,name];
         CGFloat labelX = x;
@@ -808,9 +907,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x+1,y+7,10,10) xRadius:2 yRadius:2] fill];
             labelX += 19;
             NSInteger digit = i-mapActionCount+1;
-            shortcut = [NSString stringWithFormat:@"⌘⌥%ld / ⌘⇧%ld",(long)digit,(long)digit];
-            if (_preset == digit)
-                row = [row stringByAppendingFormat:@"  ·  %@",_strings[@"solo"]];
+            shortcut = [NSString stringWithFormat:@"⌘⌥%ld",(long)digit];
         } else {
             shortcut = actionKeys[i];
         }
@@ -818,8 +915,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         [row drawInRect:NSMakeRect(labelX,y+3,MAX(0,x+width-shortcutWidth-labelX),20) withAttributes:label];
         [shortcut drawInRect:NSMakeRect(x+width-shortcutWidth,y+3,shortcutWidth,20) withAttributes:help];
     }
-    NSString *legend = [NSString stringWithFormat:@"⌘⌥1–8 %@   ·   ⌘⇧1–8 %@",
-        _strings[@"toggle_group"],_strings[@"solo"]];
+    if (_languagePanel) return;
+    NSString *legend = [NSString stringWithFormat:@"⌘⌥1–8 %@",_strings[@"toggle_group"]];
     [legend drawInRect:NSMakeRect(x,NSMinY(panel)+7,width,17) withAttributes:help];
 }
 @end

@@ -12,6 +12,7 @@ typedef struct {
 } MapPointView;
 
 int runtime_map_point_view(MapPointView *out);
+void runtime_map_hide_native_koroks(int hide);
 
 typedef enum {
     MAP_PROGRESS_BOOL,

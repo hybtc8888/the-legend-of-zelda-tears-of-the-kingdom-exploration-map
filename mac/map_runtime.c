@@ -7,12 +7,46 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint8_t *main_base;
-static int ready;
-
 static uint32_t map_branch(uint64_t from,uint64_t to){
  return 0x14000000u|((uint32_t)(((int64_t)to-(int64_t)from)/4)&0x03ffffffu);
 }
+
+static _Atomic unsigned char hide_native_koroks;
+
+void runtime_map_hide_native_koroks(int hide) {
+ atomic_store_explicit(&hide_native_koroks,hide != 0,memory_order_release);
+}
+
+void runtime_map_install_korok_filter(Module *module) {
+ const uint64_t tail=((module->file_size+15)&~15ULL)+1632;
+ // This predicate is specific to collected Korok map icons. Return its normal
+ // false result when the overlay owns Korok visibility.
+ const uint64_t site=0x20fc7a4, skip=0x20fc724;
+ const uint32_t original=0x39407688;
+ const uint32_t guard[]={0x54fffc28,original,0x7100051f,0x540002c0,0x35fffba8};
+ const uint32_t reject[]={0x2a1f03e0,0x6d42a3e9};
+ uint32_t body[]={
+  0xa9bf2be9,0x58000129,0x08dffd2a,0x3500008a, // save x9/x10; read host flag
+  0xa8c12be9,original,0,                         // run the original predicate
+  0xa8c12be9,0,0xd503201f,0,0                    // or jump to its false return
+ };
+ uint8_t *base=module->base;
+ uint64_t limit=((module->file_size+0x3fff)&~0x3fffULL)-256;
+ if(site+16>module->file_size||tail<module->patch_off||tail+sizeof body>limit||
+    memcmp(base+site-4,guard,sizeof guard)||memcmp(base+skip,reject,sizeof reject))return;
+ for(size_t i=0;i<sizeof body;i++)if(base[tail+i])return;
+ body[6]=map_branch(tail+24,site+4);
+ body[8]=map_branch(tail+32,skip);
+ uint64_t pointer=(uintptr_t)&hide_native_koroks;
+ memcpy(body+10,&pointer,8);
+ memcpy(base+tail,body,sizeof body);
+ uint32_t jump=map_branch(site,tail);
+ memcpy(base+site,&jump,4);
+}
+
+#ifndef MAP_KOROK_FILTER_ONLY
+static uint8_t *main_base;
+static int ready;
 
 /* Copy the map widget's current center, zoom, layer and filter flags to
    host storage. The same widget runs in the background with flag bit 0 set. */
@@ -45,6 +79,7 @@ void runtime_map_install(Module *module){
  memcpy(main_base+tail,body,sizeof body);
  uint32_t jump=map_branch(site,tail);
  memcpy(main_base+site,&jump,4);
+ runtime_map_install_korok_filter(module);
  ready=1;
 }
 
@@ -151,3 +186,5 @@ int runtime_map_progress(MapProgressPoint *points,size_t count){
  free(snapshot);
  return ok;
 }
+
+#endif

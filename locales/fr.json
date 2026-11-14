@@ -3,8 +3,7 @@
   "ui": {
     "title": "Carte d’exploration",
     "show_layer": "Afficher la couche d’exploration",
-    "progress": "Filtrer selon la progression",
-    "custom": "Rétablir les groupes visibles",
+    "progress": "Afficher les points collectés ou terminés",
     "controls": "Catégories et raccourcis",
     "language": "Langue",
     "automatic": "Langue du système",
@@ -14,8 +13,8 @@
     "reward": "Objet",
     "route": "Trajet de transport",
     "visible_groups": "Groupes visibles",
-    "solo": "Isoler",
-    "toggle_group": "Basculer"
+    "toggle_group": "Basculer",
+    "back": "Retour"
   },
   "installer": {
     "description": "Installez la carte d’exploration et choisissez ses catégories.",

@@ -7,7 +7,7 @@ Ce mod ajoute une couche à la carte du jeu **1.4.3** dans MacNativeGames sur le
 - **4 428 points dans le paquet de base**, dont les **1 000 noix korogus** : 800 énigmes à une noix et 100 transports à deux noix. Le paquet indique le départ et l’arrivée de chaque transport.
 - Retrouvez 152 sanctuaires, 120 racines, 15 tours de reconnaissance et 30 distributeurs d’artéfacts soneaus, ainsi que des grottes, puits, coffres, armures, larmes du dragon et boss.
 - Les points suivis disparaissent une fois terminés. Les marqueurs des boss et Lynels qui peuvent réapparaître s’assombrissent après leur défaite puis retrouvent leur éclat à leur retour. Désactivez le filtre pour revoir les points terminés.
-- Toutes les catégories sont actives par défaut. Enregistrez votre sélection ou utilisez les filtres temporaires pour les lieux, les objets à collecter ou les boss et Lynels. Les débuts de quêtes et les ressources de collecte dynamiques ne sont pas encore couverts.
+- Les huit groupes sont actifs par défaut. La visibilité est enregistrée séparément pour chaque groupe.
 
 ## Installation sur Mac
 
@@ -20,6 +20,8 @@ Prévoyez un Mac à puce Apple, Python 3.14, le code source de MacNativeGames, v
 
 Changez de langue dans la barre de menus du Mac via **View → Carte d’exploration → Langue**. `--language auto` suit la langue du système. Vos catégories sont conservées lors du changement. Le paquet est généré à partir de vos fichiers de jeu et la progression est lue en jeu sans modifier les sauvegardes.
 
+Vous pouvez aussi sélectionner **语言Language：…** en bas du panneau. Les détails des marqueurs s’affichent dans la langue choisie si le paquet contient les traductions.
+
 ## Commandes
 
 Ouvrez la carte du jeu avec **Tab / M** ou le bouton **−** de la manette. Changez de niveau avec **3 / 5** ou **↑ / ↓** sur la croix directionnelle.
@@ -30,11 +32,9 @@ Ouvrez la carte du jeu avec **Tab / M** ou le bouton **−** de la manette. Chan
 | **⌘⇧M** | Afficher ou masquer la couche |
 | **⌘⇧P** | Activer ou désactiver le filtre de progression |
 | **⌘⌥1–8** | Basculer le groupe et enregistrer sa visibilité |
-| **⌘⇧1–8** | Afficher temporairement ce groupe seul |
-| **⌘⇧0** | Rétablir la visibilité enregistrée |
 
 1. Lieux et exploration · 2. Objets et matériaux · 3. Ennemis et boss · 4. Coffres · 5. Korogus · 6. Équipement · 7. Quêtes · 8. Villages et services
 
-Appuyez brièvement sur **R3** pour ouvrir ou fermer le panneau, ou maintenez-le environ 0,7 seconde pour basculer la couche. Dans le panneau, utilisez la croix haut/bas pour choisir une ligne, gauche/droite pour changer de page et les boutons de validation et de retour du jeu. Les flèches, Entrée, Échap, la souris et la molette fonctionnent aussi. Sélectionnez à nouveau le même filtre temporaire ou quittez la carte pour retrouver vos catégories.
+Appuyez brièvement sur **R3** pour ouvrir ou fermer le panneau, ou maintenez-le environ 0,7 seconde pour basculer la couche. Dans le panneau, utilisez la croix haut/bas pour choisir une ligne, gauche/droite pour changer de page et les boutons de validation et de retour du jeu. Les flèches, Entrée, Échap, la souris et la molette fonctionnent aussi.
 
 [Format du paquet en anglais](../map-pack.md) · [Licence MIT](../../LICENSE)

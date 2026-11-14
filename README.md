@@ -5,7 +5,7 @@
 An in-game exploration overlay for Tears of the Kingdom **1.4.3** on Apple silicon Macs running MacNativeGames. The overlay follows the game's Sky, Surface and Depths maps as you switch layers, pan and zoom. Activated shrines and Lightroots retain their native markers and fast travel controls.
 
 - **4,428 points in the base pack.** Includes all **1,000 Korok Seeds** across 800 single-seed puzzles and 100 two-seed deliveries. The data records both ends of each delivery.
-- **Live progress.** Tracked pickups disappear when collected. Defeated respawning bosses and Lynels dim until they return. Turn off the progress filter to revisit completed locations.
+- **Live progress.** Tracked pickups and activities dim when completed and can be hidden with one switch. Respawning bosses and Lynels stay dim until they return.
 - **Custom filters.** Every category is enabled by default. Use eight color-coded groups and toggle each independently. Marker glyphs and the panel legend share the same group colors. Equipment remains in its own group when found in a chest.
 - **Seven languages.** The in-game menu, shortcut panel, category names and installer prompts are available in English, Simplified Chinese, Japanese, Spanish, Russian, French and German.
 
@@ -53,14 +53,14 @@ With the default bindings, **Tab** or **M** opens the native map. Press **3** to
 | --- | --- |
 | **⌘⇧L** | Show or hide the category and shortcut panel |
 | **⌘⇧M** | Toggle the overlay |
-| **⌘⇧P** | Toggle the progress filter |
+| **⌘⇧P** | Show or hide all completed points, including collected Koroks |
 | **⌘⌥1–8** | Toggle a group and save its visibility |
-| **⌘⇧1–8** | Temporarily show only the matching group |
-| **⌘⇧0** | Restore saved group visibility |
 
 Groups 1–8 are Landmarks & exploration, Collectibles & materials, Enemies & bosses, Treasure chests, Koroks, Equipment, Quests, and Towns & services.
 
-On a controller, tap **R3** to toggle the panel or hold it for about **0.7 seconds** to toggle the overlay. In the panel, use **↑ / ↓** to select a row, **← / →** to page, and the game's confirm and back buttons to toggle an option or close the panel. The panel also supports mouse and wheel input. On keyboard use the arrows, Return, and Esc. Select the same preset again or leave the game map to restore your custom categories.
+Select **语言Language：…** at the bottom of the exploration map panel with the mouse, keyboard, or controller. The setting is saved immediately and also applies to marker details when the pack includes translations.
+
+On a controller, tap **R3** to toggle the panel or hold it for about **0.7 seconds** to toggle the overlay. In the panel, use **↑ / ↓** to select a row, **← / →** to page, and the game's confirm and back buttons to toggle an option or close the panel. The panel also supports mouse and wheel input. On keyboard use the arrows, Return, and Esc.
 
 ## Repository
 
@@ -80,6 +80,14 @@ Hover over a map marker with the mouse or move the game's map reticle onto it. T
 ```sh
 python3.14 import_gamersky.py map-points.json map-points-detailed.json --romfs "/path/to/romfs"
 python3.14 mac/configure.py map-points-detailed.json
+```
+
+To translate marker names, notes, rewards and device dispenser contents locally, add translations to the detailed pack before installing it. Install `ctranslate2` and `sentencepiece` in your Python environment. The generator uses official names from your game files and a local [CTranslate2 NLLB model](https://opennmt.net/CTranslate2/guides/transformers.html#nllb) with `sentencepiece.bpe.model` for the remaining text.
+
+```sh
+python3.14 localize_markers.py map-points-detailed.json map-points-localized.json \
+  --romfs "/path/to/romfs" --model "/path/to/ctranslate2-nllb"
+python3.14 mac/configure.py map-points-localized.json
 ```
 
 [Gamersky interactive map](https://www.gamersky.com/tools/map/zeldabotw2/)
