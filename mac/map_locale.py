@@ -43,7 +43,8 @@ def render_header():
         catalogs.append(f'        {literal(code)}: @{{@"name": {literal(entry["name"])},\n'
                         f'            @"ui": {dictionary(entry["ui"])},\n'
                         f'            @"categories": {dictionary(entry["categories"])},\n'
-                        f'            @"groups": {dictionary(entry["groups"])}'
+                        f'            @"groups": {dictionary(entry["groups"])},\n'
+                        f'            @"activities": {dictionary(entry["activities"])}'
                         '}')
 
     group_ids = [group["id"] for group in GROUPS]

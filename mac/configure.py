@@ -2,7 +2,6 @@
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 import tempfile
 
@@ -32,20 +31,6 @@ def select(groups, catalog):
     except ValueError:
         raise ValueError(messages["invalid_selection"]) from None
     return [name for index, name in enumerate(groups, 1) if index not in excluded]
-
-
-def install_icons(pack, source, target):
-    if not pack.get("details"):
-        return
-    filenames = {point[key] for points in pack["layers"].values() for point in points
-                 for key in ("icon", "selected_icon") if point.get(key)}
-    if any(not re.fullmatch(r"[0-9a-f]{20}\.png", name) for name in filenames):
-        raise ValueError("The map pack contains an invalid marker icon filename.")
-    files = {name: (source / "map-icons" / name).read_bytes() for name in filenames}
-    icons = target / "map-icons"
-    icons.mkdir(exist_ok=True)
-    for name, data in files.items():
-        write(icons / name, data)
 
 
 def main():
@@ -80,10 +65,6 @@ def main():
     except ValueError as error:
         parser.error(str(error))
     target.mkdir(parents=True, exist_ok=True)
-    try:
-        install_icons(pack, args.pack.parent, target)
-    except (OSError, ValueError) as error:
-        parser.error(str(error))
     write(target / "map-points-v1.json", data)
     write(target / "map-groups-v1.json",
           (json.dumps({group["id"]: group["id"] in selected for group in GROUPS}) + "\n").encode())

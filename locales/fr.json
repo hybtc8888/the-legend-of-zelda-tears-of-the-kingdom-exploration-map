@@ -79,7 +79,8 @@
     "矿场": "Mines",
     "迷你挑战": "Quêtes secondaires",
     "集市": "Marchés",
-    "龙": "Dragons"
+    "龙": "Dragons",
+    "小游戏": "Mini-jeux"
   },
   "groups": {
     "landmarks": "Lieux et exploration",
@@ -89,6 +90,29 @@
     "koroks": "Korogus",
     "equipment": "Équipement",
     "quests": "Quêtes",
-    "facilities": "Villages et services"
+    "facilities": "Villages et services",
+    "fairies": "Grandes fées",
+    "minigames": "Mini-jeux"
+  },
+  "activities": {
+    "ball_haul": "Accueil de la goroballe",
+    "shield_surfing": "Cabane de Selmie",
+    "flight_range": "Zone d’exercice au vol",
+    "tarrey_rally": "Rallye d’Euzero",
+    "lurelin_rally": "Rallye d’Écaraille",
+    "courage_island": "Île de l’épreuve du courage",
+    "bravery_island": "Île de l’épreuve de la bravoure",
+    "valor_island": "Île de l’épreuve de l’héroïsme",
+    "ball_toss": "Lancer de balle",
+    "desert_race": "Course du désert",
+    "wing_flight": "Défi de vol en aile",
+    "yiga_training": "Entraînement au combat des Yigas",
+    "gong": "Défi du gong",
+    "horse_obstacles": "Parcours équestre",
+    "plush_field": "Collecte de peluches · plaine",
+    "plush_lakeside": "Collecte de peluches · lac",
+    "plush_cliff": "Collecte de peluches · falaises",
+    "mine_carts": "Tir sur cibles en wagonnet",
+    "death_mountain_course": "Circuit de wagonnets de la Montagne de la Mort"
   }
 }

@@ -2,16 +2,15 @@
 import argparse
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from hashlib import sha256
 from html.parser import HTMLParser
 import json
 from math import hypot, isfinite
 from pathlib import Path
 import re
-from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from map_names import game_names
+from minigames import CATEGORY as MINIGAMES
 from romfs import RomFS
 
 SITE = "https://www.gamersky.com"
@@ -19,6 +18,8 @@ VIEWER = SITE + "/tools/map/zeldabotw2/"
 MAPS = {18: "surface", 19: "depths", 20: "sky"}
 ALIASES = {"呀哈哈*2": "搬运呀哈哈", "魔犹伊遗失物": "魔犹伊", "大妖精之泉": "大妖精",
            "人马（莱尼尔）": "人马", "独眼巨人（西诺克斯）": "独眼巨人"}
+NATIVE_MAP_CATEGORIES = {"神庙", "树根", "鸟望台", "神殿", "大妖精", "地名", "天空群岛", "洞穴入口", "地洞入口",
+                         "井", "村庄", "驿站", "龙之泪", "残旧的地图", "左纳乌制造机", MINIGAMES}
 HEADERS = {"Origin": SITE, "Referer": VIEWER, "User-Agent": "Mozilla/5.0"}
 
 
@@ -82,29 +83,8 @@ def read_layer(map_id):
             "id": f"gs:{row['id']}", "category": ALIASES.get(cat["name"], cat["name"]),
             "name": plain(row["name"]), "notes": plain(row["description"] or cat["defaultIntro"]),
             "x": round(x, 2), "north": round(north, 2), "group": cat["groupName"],
-            "icon_url": row["iconUrl"], "selected_url": row["iconSelectedUrl"],
         })
     return MAPS[map_id], points
-
-
-def download_icon(url, directory):
-    parts = urlsplit(url)
-    if parts.scheme != "https" or parts.netloc != "img1b.gamersky.com" or not parts.path.endswith(".png"):
-        raise ValueError(f"Unexpected icon URL: {url}")
-    name = sha256(url.encode()).hexdigest()[:20] + ".png"
-    target = directory / name
-    if target.is_file():
-        return name
-    with urlopen(Request(url, headers=HEADERS), timeout=20) as response:
-        data = response.read(262145)
-    if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > 262144:
-        raise ValueError(f"Unexpected icon data: {url}")
-    try:
-        with target.open("xb") as output:
-            output.write(data)
-    except FileExistsError:
-        pass
-    return name
 
 
 def comparable(text):
@@ -121,13 +101,14 @@ def match_points(native, external):
         category = source["category"]
         for other in groups[category]:
             native_layer, point = native[other]
-            if native_layer != layer and category not in {"搬运呀哈哈", "呀哈哈", "洞穴入口", "地洞入口"}:
-                continue
             anchor = point.get("destination", point)
             distance = hypot(source["x"] - anchor["x"], source["north"] - anchor["north"])
             title = comparable(source["name"])
             name_match = bool(title and title != comparable(category) and
                               title in {comparable(point.get(field, "")) for field in ("name", "reward")})
+            if native_layer != layer and category not in {"搬运呀哈哈", "呀哈哈", "洞穴入口", "地洞入口"}:
+                if category != "神庙" or not name_match or distance > 65:
+                    continue
             limit = {"呀哈哈": 125, "搬运呀哈哈": 125}.get(category, 30)
             if category in {"树根", "神庙", "岩石巨人", "人马", "古栗欧克", "巨霸伽马",
                             "方块魔像", "独眼巨人", "莫尔德拉吉克"}:
@@ -144,49 +125,44 @@ def match_points(native, external):
     return matches, taken
 
 
-def build(pack, romfs, directory):
-    with ThreadPoolExecutor(max_workers=8) as pool:
+def build(pack, romfs):
+    with ThreadPoolExecutor(max_workers=len(MAPS)) as pool:
         source = dict(pool.map(read_layer, MAPS))
-        external = [(layer, point) for layer, points in source.items() for point in points]
-        if len(external) != len({point["id"] for _, point in external}):
-            raise ValueError("Duplicate marker IDs across maps")
-        urls = sorted({point[field] for _, point in external
-                       for field in ("icon_url", "selected_url") if point[field]})
-        directory.mkdir(exist_ok=True)
-        files = dict(zip(urls, pool.map(lambda url: download_icon(url, directory), urls), strict=True))
+    external = [(layer, point) for layer, points in source.items() for point in points]
+    if len(external) != len({point["id"] for _, point in external}):
+        raise ValueError("Duplicate marker IDs across maps")
 
     native = [(layer, point.copy()) for layer, points in pack["layers"].items() for point in points]
     if romfs:
         with RomFS(romfs) as fs:
             game_names(fs, [point for _, point in native])
     matches, taken = match_points(native, external)
-    icons = {}
     layers = {layer: [] for layer in pack["layers"]}
     for index, (layer, point) in enumerate(external):
         if index in matches:
-            _, original = native[matches[index]]
-            # Attach game progress without replacing the viewer's text or coordinates.
+            native_layer, original = native[matches[index]]
+            # The game's icon and the guide card must use the same coordinates.
             point["source_id"] = point.pop("id")
-            for field in ("id", "progress", "item", "reward", "supplies", "puzzle", "seeds"):
+            for field in ("id", "progress", "item", "reward", "supplies", "puzzle", "seeds", "activity"):
                 if field in original:
                     point[field] = original[field]
+            if point["category"] in NATIVE_MAP_CATEGORIES:
+                layer = native_layer
+                for field in ("x", "north", "height", "game_name"):
+                    if field in original:
+                        point[field] = original[field]
             if "destination" in original:
                 point["origin"] = {field: original[field] for field in ("x", "north", "height")}
                 point["destination"] = original["destination"]
-        point["icon"] = files.get(point.pop("icon_url"), "")
-        point["selected_icon"] = files.get(point.pop("selected_url"), "")
-        icons.setdefault(point["category"], (point["icon"], point["selected_icon"]))
         layers[layer].append(point)
 
     for index, (layer, point) in enumerate(native):
-        if index in taken:
-            continue
-        point["icon"], point["selected_icon"] = icons.get(point["category"], ("", ""))
-        layers[layer].append(point)
+        if index not in taken:
+            layers[layer].append(point)
 
     return {**pack, "layers": layers, "details": {
         "source": VIEWER, "marker_count": len(external), "matched": len(matches),
-        "new_categories": sorted(icons.keys() - {p["category"] for _, p in native}),
+        "new_categories": sorted({p["category"] for _, p in external} - {p["category"] for _, p in native}),
     }}
 
 
@@ -201,7 +177,7 @@ def main():
     pack = json.loads(args.pack.read_bytes())
     if pack.get("schema") != 1 or pack.get("version") != "1.4.3" or pack.get("details"):
         parser.error("Expected an unmodified v1 map pack for Tears of the Kingdom 1.4.3.")
-    result = build(pack, args.romfs, args.output.parent / "map-icons")
+    result = build(pack, args.romfs)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump(result, stream, ensure_ascii=False, separators=(",", ":"))
         stream.write("\n")

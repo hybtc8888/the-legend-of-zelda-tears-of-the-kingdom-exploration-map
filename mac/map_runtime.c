@@ -4,6 +4,7 @@
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,6 +13,14 @@ static uint32_t map_branch(uint64_t from,uint64_t to){
 }
 
 static _Atomic unsigned char hide_native_koroks;
+static _Atomic uint32_t native_reveals;
+static _Atomic unsigned installed_reveals;
+
+unsigned runtime_map_set_native_reveals(unsigned requested) {
+ unsigned active=requested&atomic_load_explicit(&installed_reveals,memory_order_acquire);
+ atomic_store_explicit(&native_reveals,active,memory_order_release);
+ return active;
+}
 
 void runtime_map_hide_native_koroks(int hide) {
  atomic_store_explicit(&hide_native_koroks,hide != 0,memory_order_release);
@@ -42,6 +51,112 @@ void runtime_map_install_korok_filter(Module *module) {
  memcpy(base+tail,body,sizeof body);
  uint32_t jump=map_branch(site,tail);
  memcpy(base+site,&jump,4);
+}
+
+typedef struct {
+ uint32_t site, original, previous, next;
+ uint32_t reject, accept;
+ unsigned char mode, context, indirect;
+} NativeMapReveal;
+
+enum { native_slot_size=144, native_fairy_mode=9 };
+
+static void install_fairy_predicate(Module *module,uint64_t slot) {
+ // FairyFountainGlobalSetting's four HaveKnownFlag hashes. The shared
+ // visibility predicate also handles treasure clues and the horse god.
+ const uint32_t flags[]={0x95dfbc64,0xce69eee8,0xe8c15c64,0x603bb97b};
+ uint32_t body[]={
+  0xb9410269,                    /* ldr w9,[x19,#0x100] */
+  0,0x6b0a013f,0x54000140,      /* ldr w10, flag; cmp; b.eq restore */
+  0,0x6b0a013f,0x540000e0,
+  0,0x6b0a013f,0x54000080,
+  0,0x6b0a013f,0,               /* b.ne original rejection */
+  0xa8c12be9,0                 /* restore x9/x10; original success */
+ };
+ const uint64_t start=slot+64, literals=start+sizeof body;
+ for(unsigned i=0;i<sizeof flags/sizeof *flags;++i){
+  unsigned load=1+i*3;
+  body[load]=0x1800000au|((uint32_t)((literals+i*4-start-load*4)/4)<<5);
+ }
+ int64_t reject_words=((int64_t)(slot+44)-(int64_t)(start+48))/4;
+ body[12]=0x54000001u|(((uint32_t)reject_words&0x7ffffu)<<5);
+ body[14]=map_branch(start+56,slot+40);
+ memcpy(module->base+start,body,sizeof body);
+ memcpy(module->base+literals,flags,sizeof flags);
+}
+
+/* Preserve the original result for discovered markers. For an undiscovered
+   marker, reveal it only while drawing the map. The context's cursor-query
+   flag is set when the game decides what can be selected. */
+static void install_native_reveal(Module *module,uint64_t slot,const NativeMapReveal *p) {
+ uint32_t body[]={
+  0x34000048, /* cbz w8, +8; preserve original success when nonzero */
+  0,
+  0xa9bf2be9, /* stp x9,x10,[sp,#-16]! */
+  0,
+  0x39414529, /* ldrb w9,[x9,#0x51] */
+  0x370000c9, /* tbnz w9,#0,restore and reject */
+  0x58000109, /* ldr x9, literal at slot+56 */
+  0x88dffd2a, /* ldar w10,[x9] */
+  0x3600006a, /* tbz w10,mode,restore and reject */
+  0xa8c12be9, /* ldp x9,x10,[sp],#16 */
+  0,
+  0xa8c12be9,
+  0,0,0,0
+ };
+ body[1]=map_branch(slot+4,p->accept);
+ body[3]=p->indirect ? 0xf9401809u|(p->context<<5) : 0xaa0003e9u|(p->context<<16);
+ body[8]|=(uint32_t)p->mode<<19;
+ body[10]=map_branch(slot+40,p->accept);
+ body[12]=map_branch(slot+48,p->reject);
+ if(p->mode==native_fairy_mode){
+  body[9]=map_branch(slot+36,slot+64);
+  install_fairy_predicate(module,slot);
+ }
+ uint64_t pointer=(uintptr_t)&native_reveals;
+ memcpy(body+14,&pointer,8);
+ memcpy(module->base+slot,body,sizeof body);
+ uint32_t jump=map_branch(p->site,slot);
+ memcpy(module->base+p->site,&jump,4);
+}
+
+void runtime_map_install_native_reveals(Module *module) {
+ const NativeMapReveal sites[]={
+  {0x20f6ff0,0x34000248,0x394033e8,0x39414668,0x20f7038,0x20f6ff4,0,19,0},
+  {0x736614, 0x340002c8,0x394073a8,0xf9401a68,0x73666c, 0x736618, 1,19,1},
+  {0x20f9f9c,0x340000e8,0x385fc3a8,0xf9400688,0x20f9fb8,0x20f9fa0,2,20,0},
+  {0x73644c, 0x35000328,0x394073e8,0x2a1f03e0,0x736450, 0x7364b0, 3,19,0},
+  {0x7364fc, 0x34fffaa8,0x394063e8,0x39414668,0x736450, 0x736500, 3,19,0},
+  {0x736ce4, 0x35000328,0x394073a8,0x2a1f03e0,0x736ce8, 0x736d48, 4,19,1},
+  {0x20fd158,0x34fffbe8,0x394033e8,0xf9401a68,0x20fd0d4,0x20fd15c,5,19,1},
+  {0x20fdc68,0x34fffb48,0x394023e8,0xf9401a68,0x20fdbd0,0x20fdc6c,6,19,1},
+  {0x20fcce4,0x34fffa88,0x394033e8,0xf9401a68,0x20fcc34,0x20fcce8,7,19,1},
+  {0x20f8068,0x34000988,0x394063a8,0xf9401a68,0x20f8198,0x20f806c,8,19,1},
+  {0x20fe2bc,0x34fffba8,0x385fc3a8,0xf9401a68,0x20fe230,0x20fe2c0,native_fairy_mode,19,1},
+ };
+ const uint64_t first=((module->file_size+15)&~15ULL)+1696;
+ const uint64_t limit=((module->file_size+0x3fff)&~0x3fffULL)-256;
+ if(strcmp(module->name,"main")||first<module->patch_off||first+native_slot_size*(sizeof sites/sizeof *sites)>limit)return;
+ unsigned installed=0;
+ for(unsigned mode=0;mode<=native_fairy_mode;++mode){
+  int usable=1;
+  for(size_t i=0;i<sizeof sites/sizeof *sites;++i){
+   const NativeMapReveal *p=&sites[i];
+   if(p->mode!=mode)continue;
+   uint32_t expected[]={p->previous,p->original,p->next};
+   if(p->site+8>module->file_size||memcmp(module->base+p->site-4,expected,sizeof expected)){
+    usable=0;
+    break;
+   }
+   for(size_t j=0;j<native_slot_size;++j)if(module->base[first+i*native_slot_size+j])usable=0;
+  }
+  if(!usable)continue;
+  for(size_t i=0;i<sizeof sites/sizeof *sites;++i)
+   if(sites[i].mode==mode)install_native_reveal(module,first+i*native_slot_size,&sites[i]);
+  installed|=1u<<mode;
+ }
+ atomic_store_explicit(&installed_reveals,installed,memory_order_release);
+ fprintf(stderr,"[exploration-map] native display hooks %#x\n",installed);
 }
 
 #ifndef MAP_KOROK_FILTER_ONLY
@@ -80,6 +195,7 @@ void runtime_map_install(Module *module){
  uint32_t jump=map_branch(site,tail);
  memcpy(main_base+site,&jump,4);
  runtime_map_install_korok_filter(module);
+ runtime_map_install_native_reveals(module);
  ready=1;
 }
 

@@ -17,13 +17,15 @@
     NSMutableDictionary<NSString *, NSNumber *> *_groupOverrides;
     NSDictionary<NSString *, NSColor *> *_groupColors;
     NSDictionary<NSString *, NSDictionary *> *_catalogs;
+    NSDictionary<NSString *, NSString *> *_categoryGroups;
     NSDictionary<NSString *, NSDictionary *> *_markerCatalogs, *_markerText;
     NSDictionary<NSString *, NSString *> *_strings, *_categoryLabels;
     NSString *_language, *_effectiveLanguage;
     NSMenuItem *_menuItem;
-    NSString *_layerDirectory;
-    NSMutableDictionary<NSString *, id> *_icons;
     NSMutableDictionary<NSString *, NSImage *> *_tintedIcons;
+    NSDictionary<NSString *, NSString *> *_pointGlyphs;
+    NSDictionary<NSString *, NSString *> *_groupGlyphs;
+    NSDictionary<NSString *, NSString *> *_activityLabels;
     NSDictionary<NSString *, NSValue *> *_coincidentOffsets;
     NSPoint _pointer;
     BOOL _pointerInside;
@@ -39,6 +41,9 @@
     CFTimeInterval _lastUpdate;
     BOOL _enabled;
     BOOL _showCompleted;
+    BOOL _compatibleProgress;
+    unsigned _nativeReveals;
+    NSDictionary<NSString *, NSNumber *> *_nativeCategories;
     BOOL _allKoroksCollected;
     NSUInteger _korokSeeds;
     NSArray<NSNumber *> *_korokProgressIndexes;
@@ -48,7 +53,10 @@
 }
 
 static const NSInteger mapActionCount = 2;
-static const unsigned short mapNumberKeys[] = {18,19,20,21,23,22,26,28};
+static const unsigned short mapNumberKeys[] = {18,19,20,21,23,22,26,28,25,29};
+static NSString *mapGroupKey(NSUInteger index) {
+    return [@"1234567890" substringWithRange:NSMakeRange(index,1)];
+}
 
 static NSString *mapText(NSDictionary *point, NSString *key) {
     id value = point[key];
@@ -86,6 +94,9 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 }
 
 -(NSString *)detailText:(NSDictionary *)point key:(NSString *)key {
+    NSString *activity = mapText(point,@"activity");
+    if (activity && [key isEqualToString:@"name"] && _activityLabels[activity])
+        return _activityLabels[activity];
     NSString *original = mapText(point,key);
     return original ? mapText(_markerText[key],original) ?: original : nil;
 }
@@ -109,6 +120,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     _strings = catalog[@"ui"];
     _categoryLabels = catalog[@"categories"];
     _groupLabels = catalog[@"groups"];
+    _activityLabels = catalog[@"activities"];
     _markerText = _markerCatalogs[effective];
     _selectedRow = _firstRow = 0;
 }
@@ -152,6 +164,15 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     BOOL compatibleProgress = [input[@"build_id"] isEqual:@"277178B7DBA1B6D4949A84778D4ABC58B31B34F5"];
     if ((self = [super initWithFrame:frame])) {
         _layers = [validated copy];
+        _compatibleProgress = compatibleProgress;
+        _nativeCategories = @{@"神庙":@(MAP_NATIVE_SHRINES), @"树根":@(MAP_NATIVE_SHRINES),
+            @"鸟望台":@(MAP_NATIVE_TOWERS), @"地名":@(MAP_NATIVE_PLACES),
+            @"天空群岛":@(MAP_NATIVE_PLACES),
+            @"洞穴入口":@(MAP_NATIVE_ENTRANCES), @"井":@(MAP_NATIVE_ENTRANCES),
+            @"地洞入口":@(MAP_NATIVE_ENTRANCES), @"村庄":@(MAP_NATIVE_TOWNS),
+            @"驿站":@(MAP_NATIVE_TOWNS), @"龙之泪":@(MAP_NATIVE_TEARS),
+            @"残旧的地图":@(MAP_NATIVE_OLD_MAPS), @"左纳乌制造机":@(MAP_NATIVE_DISPENSERS),
+            @"神殿":@(MAP_NATIVE_TEMPLES), @"大妖精":@(MAP_NATIVE_FAIRIES)};
         NSMutableDictionary *markerCatalogs = [NSMutableDictionary dictionary];
         if ([input[@"marker_text"] isKindOfClass:NSDictionary.class]) {
             for (NSString *code in mapLanguages()) {
@@ -165,9 +186,49 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             }
         }
         _markerCatalogs = [markerCatalogs copy];
-        _layerDirectory = [@(path) stringByDeletingLastPathComponent];
-        _icons = [NSMutableDictionary dictionary];
         _tintedIcons = [NSMutableDictionary dictionary];
+        _pointGlyphs = @{
+            @"神庙":@"5 7 5 13 12 20 19 13 19 7 5 7;9 7 9 12 12 15 15 12 15 7",
+            @"树根":@"4 17 12 10 20 17;7 20 12 15 17 20;12 15 12 4;7 7 12 3 17 7",
+            @"鸟望台":@"6 5 8 15 5 16 5 19 19 19 19 16 16 15 18 5;8 10 16 10;12 5 12 15",
+            @"洞穴入口":@"4 6 4 12 9 19 15 19 20 12 20 6 4 6;9 6 9 12 12 15 15 12 15 6",
+            @"井":@"4 13 8 17 16 17 20 13 16 9 8 9 4 13;4 13 5 7 9 5 15 5 19 7 20 13",
+            @"地洞入口":@"5 17 12 10 19 17;5 11 12 4 19 11",
+            @"残旧的地图":@"5 17 10 19 15 17 19 19 19 7 15 5 10 7 5 5 5 17;10 7 10 19;15 5 15 17",
+            @"龙之泪":@"12 20 18 12 18 8 15 5 9 5 6 8 6 12 12 20;10 8 14 8",
+            @"左纳乌制造机":@"8 17 10 20 14 20 16 17;6 15 18 15 20 12 17 6 7 6 4 12 6 15;10 10 14 10",
+            @"搬运呀哈哈":@"5 8 8 15 13 19 19 19 19 13 16 8 10 5 5 8;8 7 16 15;10 5 19 5 19 8",
+            @"村庄":@"4 12 12 20 20 12;6 13 6 5 18 5 18 13;10 5 10 10 14 10 14 5",
+            @"驿站":@"5 7 5 12 10 20 13 16 19 14 19 10 12 10 14 7 5 7;10 15 11 15",
+            @"大妖精":@"12 20 14 14 20 12 14 10 12 4 10 10 4 12 10 14 12 20",
+            @"烹饪点":@"4 14 20 14;6 14 7 8 10 6 14 6 17 8 18 14;9 18 9 20;15 18 15 20",
+            @"女神雕像":@"12 20 10 18 12 16 14 18 12 20;12 15 5 12 8 8 9 5 15 5 16 8 19 12 12 15",
+            @"矿场":@"5 7 15 17;9 16 14 19 19 17 20 12",
+            @"盾牌":@"5 18 19 18 18 11 15 6 12 4 9 6 6 11 5 18;12 15 12 8",
+            @"弓与箭":@"6 19 6 5 14 9 17 12 14 15 6 19;4 12 21 12;17 16 21 12 17 8",
+            @"防具":@"4 15 8 19 10 16 14 16 16 19 20 15 17 11 16 12 16 5 8 5 8 12 7 11 4 15",
+            @"岩石巨人":@"4 8 7 14 10 14 10 19 14 19 14 14 17 14 20 8;7 8 9 5 15 5 17 8",
+            @"独眼巨人":@"4 12 8 17 16 17 20 12 16 7 8 7 4 12;10 12 12 14 14 12 12 10 10 12",
+            @"方块魔像":@"5 13 12 19 19 13 19 7 12 4 5 7 5 13 12 10 19 13;12 4 12 10",
+            @"人马":@"5 18 8 11 12 6 16 11 19 18;7 13 10 14;17 13 14 14;9 7 9 4 15 4 15 7",
+            @"巨霸伽马":@"5 15 4 11 7 7 17 7 20 11 19 15;5 15 8 18 16 18 19 15;8 11 16 11",
+            @"古栗欧克":@"4 17 8 12 12 17 16 12 20 17;8 12 9 7 12 5 15 7 16 12",
+            @"魔犹伊":@"5 14 8 18 16 18 19 14 17 9 14 7 10 7 7 9 5 14;7 9 4 5;17 9 20 5;9 13 15 13",
+            @"依盖队设计图":@"6 19 15 19 18 16 18 5 6 5 6 19;9 12 15 12;9 8 15 8",
+            @"贤者的遗志":@"12 20 17 15 17 9 12 5 7 9 7 15 12 20;12 7 12 15;8 12 16 12",
+            @"卡邦达立牌":@"12 5 12 17;5 17 19 17 19 10 5 10 5 17;9 14 15 14",
+        };
+        _groupGlyphs = @{
+            @"landmarks":@"12 20 17 17 17 12 12 4 7 12 7 17 12 20;11 14 13 14",
+            @"collectibles":@"12 20 18 15 18 9 12 4 6 9 6 15 12 20;6 15 18 15;6 9 18 9",
+            @"enemies":@"5 19 9 16 15 16 19 19 18 9 15 6 9 6 6 9 5 19;8 12 10 11;14 11 16 12",
+            @"chests":@"4 13 7 18 17 18 20 13 20 6 4 6 4 13 20 13;10 13 10 10 14 10 14 13",
+            @"koroks":@"5 8 8 15 13 19 19 19 19 13 16 8 10 5 5 8;6 5 16 15;12 11 11 16",
+            @"equipment":@"6 5 18 17 19 20 16 19 5 8;4 11 10 5;18 7 19 6;17 8 6 19",
+            @"quests":@"6 20 6 4;7 19 18 19 15 15 18 11 7 11;9 7 16 7",
+            @"facilities":@"4 12 12 20 20 12;6 13 6 5 18 5 18 13;10 5 10 10 14 10 14 5",
+            @"minigames":@"6 5 6 20;6 19 18 19 16 15 18 11 6 11;6 5 10 5",
+        };
         NSMutableDictionary *offsets = [NSMutableDictionary dictionary];
         for (NSArray *points in _layers.allValues) {
             NSMutableDictionary *groups = [NSMutableDictionary dictionary];
@@ -201,12 +262,12 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         NSMutableSet *allCategories = [NSMutableSet set];
         NSMutableDictionary *groupMembers = [NSMutableDictionary dictionary];
         NSMutableDictionary *pointGroups = [NSMutableDictionary dictionary];
-        NSDictionary *categoryGroups = mapCategoryGroups();
+        _categoryGroups = mapCategoryGroups();
         NSArray *equipmentPrefixes = mapEquipmentPrefixes(), *equipmentSuffixes = mapEquipmentSuffixes();
         for (NSArray *points in _layers.allValues) {
             for (NSDictionary *point in points) {
                 NSString *category = point[@"category"];
-                NSString *group = mapPointGroup(point,categoryGroups,equipmentPrefixes,equipmentSuffixes);
+                NSString *group = mapPointGroup(point,_categoryGroups,equipmentPrefixes,equipmentSuffixes);
                 [allCategories addObject:category];
                 NSMutableSet *members = groupMembers[group];
                 if (!members) groupMembers[group] = members = [NSMutableSet set];
@@ -233,6 +294,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             if ([names isKindOfClass:NSArray.class] && [names count]<=128) {
                 NSMutableSet *categories = [NSMutableSet set];
                 for (id name in names) if ([name isKindOfClass:NSString.class]) [categories addObject:name];
+                if ([allCategories containsObject:@"小游戏"]) [categories addObject:@"小游戏"];
                 _categories = [categories copy];
             }
         }
@@ -242,6 +304,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             if ([groups isKindOfClass:NSDictionary.class]) {
                 for (NSString *group in _groupIDs)
                     if ([groups[group] isKindOfClass:NSNumber.class]) _groupOverrides[group] = groups[group];
+                if (!_groupOverrides[@"fairies"] && _groupOverrides[@"facilities"])
+                    _groupOverrides[@"fairies"] = _groupOverrides[@"facilities"];
             }
         }
         _showCompleted = !runtime_setting_word(mapCompletedSettingsFile.UTF8String,saved,sizeof saved) ||
@@ -307,8 +371,35 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 }
 -(void)dealloc {
     runtime_map_hide_native_koroks(0);
+    runtime_map_set_native_reveals(0);
     [_timer invalidate];
     if (_keyboardMonitor) [NSEvent removeMonitor:_keyboardMonitor];
+}
+
+-(void)refreshNativeReveals {
+    unsigned requested = 0;
+    if (_mapActive && _enabled && _compatibleProgress) {
+        unsigned disabled = 0;
+        for (NSString *category in _nativeCategories) {
+            unsigned mask = _nativeCategories[category].unsignedIntValue;
+            NSNumber *override = _groupOverrides[_categoryGroups[category]];
+            if (override ? override.boolValue : [_categories containsObject:category])
+                requested |= mask;
+            else
+                disabled |= mask;
+        }
+        requested &= ~disabled;
+    }
+    _nativeReveals = runtime_map_set_native_reveals(requested);
+}
+
+-(BOOL)usesNativeIcon:(NSDictionary *)point {
+    if ([point[@"category"] isEqualToString:@"神殿"]) return YES;
+    NSString *identifier = mapText(point,@"id");
+    if (!identifier || [identifier hasPrefix:@"gs:"]) return NO;
+    if ([point[@"category"] isEqualToString:@"小游戏"] && mapText(point,@"game_name"))
+        return (_nativeReveals & MAP_NATIVE_PLACES) != 0;
+    return (_nativeReveals & _nativeCategories[point[@"category"]].unsignedIntValue) != 0;
 }
 
 -(NSRect)panelRect {
@@ -387,6 +478,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 }
 
 -(void)saveGroupVisibility {
+    if (!_groupOverrides[@"fairies"])
+        _groupOverrides[@"fairies"] = @([self groupState:@"fairies"] == NSControlStateValueOn);
     NSData *settings = [NSJSONSerialization dataWithJSONObject:_groupOverrides options:0 error:NULL];
     NSString *json = [[NSString alloc] initWithData:settings encoding:NSUTF8StringEncoding];
     if (json) runtime_setting_save(mapGroupSettingsFile.UTF8String,json.UTF8String,"map groups");
@@ -531,6 +624,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         runtime_map_input_context(inputActive, _panelOpen);
     }
     runtime_map_hide_native_koroks(_enabled);
+    [self refreshNativeReveals];
     BOOL hide = !active || (!_enabled && !_panelOpen);
     if (active && _enabled && _progress.length && (self.hidden || now-_lastProgressRead>=0.5)) {
         _lastProgressRead = now;
@@ -607,8 +701,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSMenuItem *visibleItem = [[NSMenuItem alloc] initWithTitle:visible.title action:nil keyEquivalent:@""];
     visibleItem.submenu = visible;
     [categories addItem:visibleItem];
-    for (NSUInteger digit = 1; digit <= _groupIDs.count; ++digit) {
-        NSString *group = _groupIDs[digit-1], *key = [@(digit) stringValue];
+    for (NSUInteger i = 0; i < _groupIDs.count; ++i) {
+        NSString *group = _groupIDs[i], *key = mapGroupKey(i);
         NSString *label = _groupLabels[group];
         NSMenuItem *toggleGroup = [[NSMenuItem alloc] initWithTitle:label action:@selector(toggleGroupMenu:) keyEquivalent:key];
         toggleGroup.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagOption;
@@ -631,56 +725,41 @@ static NSString *const mapLanguageFile = @"map-language.txt";
 
 }
 
--(NSString *)iconKeyForPoint:(NSDictionary *)point selected:(BOOL)selected {
-    NSString *name = (selected ? mapText(point,@"selected_icon") : nil) ?: mapText(point,@"icon");
-    const char *filename = name.UTF8String;
-    if (filename && strlen(filename) == 24 && strspn(filename,"0123456789abcdef") == 20 &&
-        !strcmp(filename+20,".png")) return name;
-
-    NSString *category = point[@"category"];
-    NSString *symbol = @{@"天空群岛":@"cloud.fill", @"地名":@"mappin.circle.fill",
-                         @"依盖队设计图":@"doc.text.fill", @"染色店":@"drop.fill"}[category];
-    return [@"symbol:" stringByAppendingString:symbol ?: @"mappin.circle.fill"];
-}
-
--(NSImage *)iconForKey:(NSString *)key {
-    id cached = _icons[key];
-    if (cached) return cached == NSNull.null ? nil : cached;
-    NSImage *image;
-    if ([key hasPrefix:@"symbol:"]) {
-        image = [NSImage imageWithSystemSymbolName:[key substringFromIndex:7] accessibilityDescription:nil];
-    } else {
-        NSString *directory = [_layerDirectory stringByAppendingPathComponent:@"map-icons"];
-        image = [[NSImage alloc] initWithContentsOfFile:[directory stringByAppendingPathComponent:key]];
-    }
-    _icons[key] = image ?: NSNull.null;
-    return image;
-}
-
--(NSImage *)iconForPoint:(NSDictionary *)point selected:(BOOL)selected {
-    NSString *key = [self iconKeyForPoint:point selected:selected];
-    return [self iconForKey:key] ?: [self iconForKey:@"symbol:mappin.circle.fill"];
-}
-
 -(NSImage *)tintedIconForPoint:(NSDictionary *)point group:(NSString *)group selected:(BOOL)selected {
-    NSString *key = [self iconKeyForPoint:point selected:selected];
-    NSString *cacheKey = [group stringByAppendingFormat:@"/%@",key];
+    NSString *glyph = _pointGlyphs[point[@"category"]] ?: _groupGlyphs[group];
+    NSString *cacheKey = [group stringByAppendingFormat:@"/%d/%@",selected,glyph];
     NSImage *cached = _tintedIcons[cacheKey];
     if (cached) return cached;
 
-    NSImage *original = [self iconForPoint:point selected:selected];
-    if (!original) return nil;
-    NSColor *color = _groupColors[group];
-    NSSize size = NSMakeSize(72,72);
-    CGFloat scale = 64 / MAX(original.size.width,original.size.height);
-    NSSize glyph = NSMakeSize(original.size.width*scale,original.size.height*scale);
-    NSRect bounds = NSMakeRect(0,0,size.width,size.height);
-    NSRect image = NSMakeRect((size.width-glyph.width)/2,(size.height-glyph.height)/2,glyph.width,glyph.height);
-    NSImage *tinted = [[NSImage alloc] initWithSize:size];
+    NSColor *color = _groupColors[group] ?: NSColor.whiteColor;
+    NSImage *tinted = [[NSImage alloc] initWithSize:NSMakeSize(72,72)];
     [tinted lockFocus];
-    [original drawInRect:image fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
-    [color setFill];
-    NSRectFillUsingOperation(bounds,NSCompositingOperationSourceIn);
+    NSBezierPath *frame = [NSBezierPath bezierPath];
+    [frame moveToPoint:NSMakePoint(19,6)];
+    for (NSValue *corner in @[[NSValue valueWithPoint:NSMakePoint(6,19)], [NSValue valueWithPoint:NSMakePoint(6,53)],
+         [NSValue valueWithPoint:NSMakePoint(19,66)], [NSValue valueWithPoint:NSMakePoint(53,66)],
+         [NSValue valueWithPoint:NSMakePoint(66,53)], [NSValue valueWithPoint:NSMakePoint(66,19)],
+         [NSValue valueWithPoint:NSMakePoint(53,6)]]) [frame lineToPoint:corner.pointValue];
+    [frame closePath];
+    [[NSColor colorWithSRGBRed:.04 green:.12 blue:.17 alpha:.94] setFill];
+    [frame fill];
+    [[color colorWithAlphaComponent:selected ? 1 : .67] setStroke];
+    frame.lineWidth = selected ? 4 : 2.5;
+    [frame stroke];
+    NSBezierPath *sign = [NSBezierPath bezierPath];
+    for (NSString *stroke in [glyph componentsSeparatedByString:@";"]) {
+        NSScanner *scanner = [NSScanner scannerWithString:stroke];
+        double x,y;
+        if (![scanner scanDouble:&x] || ![scanner scanDouble:&y]) continue;
+        [sign moveToPoint:NSMakePoint(9+2.25*x,9+2.25*y)];
+        while ([scanner scanDouble:&x] && [scanner scanDouble:&y])
+            [sign lineToPoint:NSMakePoint(9+2.25*x,9+2.25*y)];
+    }
+    sign.lineJoinStyle = NSLineJoinStyleRound;
+    sign.lineCapStyle = NSLineCapStyleRound;
+    sign.lineWidth = selected ? 6 : 5.3;
+    [color setStroke];
+    [sign stroke];
     [tinted unlockFocus];
     _tintedIcons[cacheKey] = tinted;
     return tinted;
@@ -702,7 +781,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     [NSGraphicsContext restoreGraphicsState];
 }
 
--(void)drawPointDetails:(NSDictionary *)point at:(NSPoint)anchor map:(NSRect)map panel:(NSRect)panel {
+-(void)drawPointDetails:(NSDictionary *)point at:(NSPoint)anchor map:(NSRect)map panel:(NSRect)panel native:(BOOL)native {
     const CGFloat inset = 12;
     CGFloat width = MIN(380, NSWidth(map)*.46);
     if (width < 110 || NSHeight(map) < 90) return;
@@ -748,7 +827,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     CGFloat height = titleHeight+2*inset+18+(bodyHeight ? bodyHeight+7 : 0);
     CGFloat x = MIN(NSMaxX(map)-width-7, anchor.x+18);
     if (x <= anchor.x+8) x = MAX(NSMinX(map)+7, anchor.x-width-18);
-    CGFloat y = MAX(NSMinY(map)+7, MIN(NSMaxY(map)-height-7, anchor.y+18));
+    CGFloat offset = native ? 48 : 18;
+    CGFloat y = MAX(NSMinY(map)+7, MIN(NSMaxY(map)-height-7, anchor.y+offset));
     NSRect box = NSMakeRect(x,y,width,height);
     if (NSContainsRect(NSInsetRect(box,-5,-5), NSMakeRect(anchor.x,anchor.y,1,1)) ||
         NSIntersectsRect(box,panel)) {
@@ -783,7 +863,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSRect map = NSInsetRect(NSMakeRect(center.x-960*unit,center.y-540*unit,1920*unit,1080*unit),105*unit,82*unit);
     if (NSIsEmptyRect(map)) return;
     NSArray *points = _enabled ? _layers[_layerNames[_camera.layer]] : @[];
-    const CGFloat size = MAX(12, MIN(30, (15 + 31*_camera.scale)*unit));
+    const CGFloat size = MAX(14, MIN(30, (15 + 31*_camera.scale)*unit));
     const CGFloat gap = MAX(5,size*.7);
     NSRect layers = NSMakeRect(NSMinX(map),center.y-190*unit,215*unit,380*unit);
     NSRect panel = _panelOpen ? [self panelRect] : NSZeroRect;
@@ -797,6 +877,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     NSDictionary *selected = nil;
     NSPoint anchor = NSZeroPoint;
     BOOL selectedDim = NO;
+    BOOL selectedNative = NO;
 
     CGContextRef context = NSGraphicsContext.currentContext.CGContext;
     CGContextSaveGState(context);
@@ -808,6 +889,8 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         NSNumber *override = _groupOverrides[group];
         BOOL accepted = override ? override.boolValue : [_categories containsObject:category];
         if (!accepted) continue;
+        NSString *identifier = mapText(point,@"id");
+        BOOL native = [self usesNativeIcon:point];
         NSNumber *index = _progressIndexes[point[@"id"]];
         BOOL dim = NO, respawns = NO;
         if (index) {
@@ -819,10 +902,13 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             // The source can contain duplicate Korok annotations with no game flag.
             dim = YES;
         }
-        if (dim && !respawns && !_showCompleted) continue;
+        // The game removes collected Old Maps from its native marker list.
+        if (dim && [category isEqualToString:@"残旧的地图"]) native = NO;
+        if (dim && [category isEqualToString:@"小游戏"] && mapText(point,@"game_name")) native = YES;
+        if (dim && !respawns && !_showCompleted && !native) continue;
         CGFloat dx = [point[@"x"] doubleValue]-_camera.x;
         CGFloat dn = [point[@"north"] doubleValue]-_camera.north;
-        NSValue *stacked = _coincidentOffsets[mapText(point,@"id") ?: @""];
+        NSValue *stacked = native ? nil : _coincidentOffsets[identifier ?: @""];
         NSPoint offset = stacked.pointValue;
         NSPoint p = NSMakePoint(center.x+dx*pixelsPerMeter+offset.x*size,
                                 center.y+dn*pixelsPerMeter+offset.y*size);
@@ -833,9 +919,11 @@ static NSString *const mapLanguageFile = @"map-language.txt";
                 closest = distance;
                 selected = point;
                 selectedDim = dim;
+                selectedNative = native;
                 anchor = p;
             }
         }
+        if (native) continue;
         unsigned row = (unsigned)((p.y-NSMinY(map))/gap), col = (unsigned)((p.x-NSMinX(map))/gap);
         NSNumber *cell = @(((uint64_t)row<<32)|col);
         NSArray *prior = markers[cell];
@@ -845,8 +933,9 @@ static NSString *const mapLanguageFile = @"map-language.txt";
     for (NSArray *marker in markers.objectEnumerator)
         [self drawMarker:marker[0] at:[marker[1] pointValue] size:size dim:[marker[2] boolValue] selected:NO];
     if (selected) {
-        [self drawPointDetails:selected at:anchor map:map panel:panel];
-        [self drawMarker:selected at:anchor size:size dim:selectedDim selected:YES];
+        [self drawPointDetails:selected at:anchor map:map panel:panel native:selectedNative];
+        if (!selectedNative)
+            [self drawMarker:selected at:anchor size:size dim:selectedDim selected:YES];
     }
     CGContextRestoreGState(context);
     if (_panelOpen) [self drawPanel];
@@ -906,8 +995,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
             [_groupColors[group] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x+1,y+7,10,10) xRadius:2 yRadius:2] fill];
             labelX += 19;
-            NSInteger digit = i-mapActionCount+1;
-            shortcut = [NSString stringWithFormat:@"⌘⌥%ld",(long)digit];
+            shortcut = [@"⌘⌥" stringByAppendingString:mapGroupKey((NSUInteger)(i-mapActionCount))];
         } else {
             shortcut = actionKeys[i];
         }
@@ -916,7 +1004,7 @@ static NSString *const mapLanguageFile = @"map-language.txt";
         [shortcut drawInRect:NSMakeRect(x+width-shortcutWidth,y+3,shortcutWidth,20) withAttributes:help];
     }
     if (_languagePanel) return;
-    NSString *legend = [NSString stringWithFormat:@"⌘⌥1–8 %@",_strings[@"toggle_group"]];
+    NSString *legend = [NSString stringWithFormat:@"⌘⌥1–9, 0 %@",_strings[@"toggle_group"]];
     [legend drawInRect:NSMakeRect(x,NSMinY(panel)+7,width,17) withAttributes:help];
 }
 @end

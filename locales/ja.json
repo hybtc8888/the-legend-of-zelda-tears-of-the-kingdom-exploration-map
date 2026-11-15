@@ -79,7 +79,8 @@
     "矿场": "採掘場",
     "迷你挑战": "ミニチャレンジ",
     "集市": "市場",
-    "龙": "龍"
+    "龙": "龍",
+    "小游戏": "ミニゲーム"
   },
   "groups": {
     "landmarks": "地形・探索",
@@ -89,6 +90,29 @@
     "koroks": "コログ",
     "equipment": "装備",
     "quests": "チャレンジ",
-    "facilities": "集落・施設"
+    "facilities": "集落・施設",
+    "fairies": "大妖精",
+    "minigames": "ミニゲーム"
+  },
+  "activities": {
+    "ball_haul": "ボール運び受付",
+    "shield_surfing": "スレミーの小屋",
+    "flight_range": "飛行訓練場",
+    "tarrey_rally": "イチカラリー",
+    "lurelin_rally": "ウオトラリー",
+    "courage_island": "勇気を試す島",
+    "bravery_island": "剛勇を試す島",
+    "valor_island": "大勇を試す島",
+    "ball_toss": "ボール投げ",
+    "desert_race": "砂漠のレース",
+    "wing_flight": "翼の飛行チャレンジ",
+    "yiga_training": "イーガ団の戦闘訓練",
+    "gong": "ゴングチャレンジ",
+    "horse_obstacles": "馬の障害物レース",
+    "plush_field": "ぬいぐるみ集め・平地",
+    "plush_lakeside": "ぬいぐるみ集め・湖畔",
+    "plush_cliff": "ぬいぐるみ集め・崖",
+    "mine_carts": "トロッコの的当て",
+    "death_mountain_course": "デスマウンテンのトロッココース"
   }
 }

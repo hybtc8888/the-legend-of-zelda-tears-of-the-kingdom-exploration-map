@@ -3,9 +3,9 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
-import re
 
 from flag_hash import name_hash
+from minigames import ACTOR_ACTIVITIES, CATEGORY as MINIGAMES, LOCATION_ACTIVITIES
 from romfs import RomFS
 
 GAME_BUILD = "277178B7DBA1B6D4949A84778D4ABC58B31B34F5"
@@ -45,8 +45,18 @@ def build(fs):
     if len(lightroots) != 120 or any(row["RawValues"] != ["Close", "Open"] for row in lightroots):
         raise ValueError("Unexpected 1.4.3 lightroot state table")
     resets = {r["Hash"]: r["ResetTypeValue"] for r in game["Bool64bitKey"]}
+    fountain_settings = fs.byml(
+        "GameParameter/FairyFountainGlobalSetting/Default.game__ui__FairyFountainGlobalSetting.bgyml"
+    )["Contents"]
+    fairy_locations = {
+        Path(entry["Actor"]).name.split(".", 1)[0]: entry["Location"] for entry in fountain_settings
+        if Path(entry["Actor"]).name.startswith("Npc_DressFairy_")
+    }
+    fountain_resources = set(fairy_locations.values())
+    fairy_positions = {}
     layers = {layer: [] for layer in ("surface", "sky", "depths")}
     actors = {}
+    named_minigames = set()
 
     def add(layer, category, key, position, progress=None, **extra):
         x, y, z = position
@@ -76,7 +86,10 @@ def build(fs):
                 continue
             for location_index, row in enumerate(rows):
                 resource = row["LocationName"]
+                if resource in fountain_resources:
+                    fairy_positions[resource] = row["Trans"][0]
                 name = Path(resource).name.split(".", 1)[0]
+                activity = LOCATION_ACTIVITIES.get(name)
                 if kind == "Shrine":
                     progress = known_enum(f"DungeonState.{name}", ("Open", "Enter", "Clear"))
                 elif kind == "CheckPoint":
@@ -89,7 +102,14 @@ def build(fs):
                     if kind == "SkyArchipelago":
                         layer = "sky"
                     category = LOCATIONS.get(kind, "地名")
-                    add(layer, category, f"location:{key}", position, progress, game_name=name)
+                    if activity:
+                        if activity in named_minigames:
+                            continue
+                        named_minigames.add(activity)
+                        add(layer, MINIGAMES, f"location:{key}", position, progress,
+                            game_name=name, activity=activity)
+                    else:
+                        add(layer, category, f"location:{key}", position, progress, game_name=name)
                 for i, marker in enumerate(row.get("CaveMarkerInfo", [])):
                     position = marker["Trans"]
                     progress = known_bool(f"IsGetCaveMasterMedal.{name}")
@@ -136,6 +156,12 @@ def build(fs):
         name = actor["Gyaml"]
         position = actor["Translate"]
         layer = get_layer(path, position[1])
+        if activity := ACTOR_ACTIVITIES.get(key):
+            # Death Mountain's course is above 700 m but is a surface placement.
+            if path.startswith("Banc/MainField/") and "/Sky/" not in path:
+                layer = "surface"
+            add(layer, MINIGAMES, f"actor:{key}", position, activity=activity)
+            continue
         drop = actor.get("Dynamic", {}).get("Drop__DropActor", "")
         reset = resets.get(key)
         progress = {"key": str(key), "kind": "guid", "value": 1} if reset == 80 else None
@@ -154,8 +180,9 @@ def build(fs):
                 progress = known_bool(f"ReadyMadeAutoBuilderDraft.{drop}.IsOwned") or progress
         elif name == "Npc_CraftSignboard001":
             category = "卡邦达立牌"
-        elif re.fullmatch(r"Npc_DressFairy_\d{2}", name):
+        elif name in fairy_locations:
             category = "大妖精"
+            position = fairy_positions[fairy_locations[name]]
         elif name.startswith("Enemy_") and reset in (88, 208):
             family = name.split("_")[1]
             category = BOSSES.get(family)
@@ -171,9 +198,13 @@ def build(fs):
 
     points = [point for layer in layers.values() for point in layer]
     counts = Counter(point["category"] for point in points)
-    expected = {"神庙": 152, "树根": 120, "鸟望台": 15, "呀哈哈": 800, "搬运呀哈哈": 100, "左纳乌制造机": 30}
+    expected = {"神庙": 152, "树根": 120, "鸟望台": 15, "呀哈哈": 800, "搬运呀哈哈": 100,
+                "左纳乌制造机": 30, "大妖精": 4}
     if any(counts[key] != value for key, value in expected.items()):
         raise ValueError(f"Unexpected 1.4.3 counts: {dict(counts)}")
+    expected_activities = set(LOCATION_ACTIVITIES.values()) | set(ACTOR_ACTIVITIES.values())
+    if Counter(p["activity"] for p in points if p["category"] == MINIGAMES) != dict.fromkeys(expected_activities, 1):
+        raise ValueError("Missing or duplicate minigame starts in the 1.4.3 placement tables")
     if len({p["id"] for p in points}) != len(points) or sum(p.get("seeds", 0) for p in points) != 1000:
         raise ValueError("Duplicate point identifiers or unexpected Korok seed total")
     return {"schema": 1, "game": "0100F2C0115B6000", "version": "1.4.3",

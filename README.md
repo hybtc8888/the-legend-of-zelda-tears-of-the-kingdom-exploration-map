@@ -2,11 +2,12 @@
 
 **English** · [简体中文](docs/zh-Hans/README.md) · [日本語](docs/ja/README.md) · [Español](docs/es/README.md) · [Русский](docs/ru/README.md) · [Français](docs/fr/README.md) · [Deutsch](docs/de/README.md)
 
-An in-game exploration overlay for Tears of the Kingdom **1.4.3** on Apple silicon Macs running MacNativeGames. The overlay follows the game's Sky, Surface and Depths maps as you switch layers, pan and zoom. Activated shrines and Lightroots retain their native markers and fast travel controls.
+An in-game exploration map for Tears of the Kingdom **1.4.3** on Apple silicon Macs running MacNativeGames. It expands the native Sky, Surface and Depths maps with discoverable landmarks, live collection tracking and guide cards. Shrines, Lightroots, towers, caves, the five temples, Great Fairy Fountains and other supported locations use the game's own markers. The overlay adds original glyphs where the game lacks a marker. Fast travel follows the game's own controls and unlocks.
 
-- **4,428 points in the base pack.** Includes all **1,000 Korok Seeds** across 800 single-seed puzzles and 100 two-seed deliveries. The data records both ends of each delivery.
+- **4,436 points in the base pack.** Includes all **1,000 Korok Seeds** across 800 single-seed puzzles and 100 two-seed deliveries. The data records both ends of each delivery.
 - **Live progress.** Tracked pickups and activities dim when completed and can be hidden with one switch. Respawning bosses and Lynels stay dim until they return.
-- **Custom filters.** Every category is enabled by default. Use eight color-coded groups and toggle each independently. Marker glyphs and the panel legend share the same group colors. Equipment remains in its own group when found in a chest.
+- **Ten filters.** Every group is enabled by default. Treasure chests, equipment, Koroks, Great Fairies and minigames each have their own switch.
+- **19 minigame starts.** Native place labels cover supported venues. Additional pins mark registration locations. The game handles active objectives and progress.
 - **Seven languages.** The in-game menu, shortcut panel, category names and installer prompts are available in English, Simplified Chinese, Japanese, Spanish, Russian, French and German.
 
 | Points of interest | Examples |
@@ -15,6 +16,7 @@ An in-game exploration overlay for Tears of the Kingdom **1.4.3** on Apple silic
 | Entrances and services | Caves, chasms, wells, Great Fairies, 30 Zonai Device Dispensers, inns and shops |
 | Collectibles | Koroks, chests, armor, Sage’s Wills, Old Maps, Yiga Schematics, Dragon’s Tears, Bubbulfrogs and Addison’s signs |
 | Enemies | Taluses, Hinoxes, Lynels, Gleeoks, Froxes, Flux Constructs and Moldugas |
+| Minigames | Shield surfing, Tarrey Town and Lurelin rallies, diving challenges and mine-cart courses |
 
 The base pack covers fixed placements. The optional import adds guide markers such as quest starting points and gathering spots.
 
@@ -31,11 +33,13 @@ You need an Apple silicon Mac, Python 3.14, a MacNativeGames source checkout, an
 2. Build or update the **1.4.3** Mac App from that MacNativeGames checkout. Quit the App first if you are updating. The integration can be run again over an existing installation made with this project's integration script.
 3. Generate the shared map pack from your extracted 1.4.3 RomFS. In the MacNativeGames build workspace it is typically under `totk/extracted/v143/romfs` and contains `index.json` and `romfs.bin`.
 
+   Regenerate an older pack to add the minigame locations.
+
    ```sh
    python3.14 build_map.py "/path/to/romfs" map-points.json
    ```
 
-4. Install the pack. Press Return to keep all eight groups, or enter the numbers you want to exclude, separated by spaces. Add `--all` to skip the prompt.
+4. Install the pack. Press Return to keep all ten groups, or enter the numbers you want to exclude, separated by spaces. Add `--all` to skip the prompt.
 
    ```sh
    python3.14 mac/configure.py map-points.json --language en
@@ -54,9 +58,12 @@ With the default bindings, **Tab** or **M** opens the native map. Press **3** to
 | **⌘⇧L** | Show or hide the category and shortcut panel |
 | **⌘⇧M** | Toggle the overlay |
 | **⌘⇧P** | Show or hide all completed points, including collected Koroks |
-| **⌘⌥1–8** | Toggle a group and save its visibility |
+| **⌘⌥1–9** | Toggle groups 1–9 and save their visibility |
+| **⌘⌥0** | Toggle minigames |
 
-Groups 1–8 are Landmarks & exploration, Collectibles & materials, Enemies & bosses, Treasure chests, Koroks, Equipment, Quests, and Towns & services.
+Groups 1–9 are Landmarks & exploration, Collectibles & materials, Enemies & bosses, Treasure chests, Koroks, Equipment, Quests, Towns & services, and Great Fairies.
+
+The minigame switch controls the added pins and guide cards. The game's place labels and live objective markers follow the native map.
 
 Select **语言Language：…** at the bottom of the exploration map panel with the mouse, keyboard, or controller. The setting is saved immediately and also applies to marker details when the pack includes translations.
 
@@ -70,12 +77,13 @@ On a controller, tap **R3** to toggle the panel or hold it for about **0.7 secon
 | [`locales/`](locales/) | Translation catalogs shared by the installer and Mac UI |
 | [`mac/`](mac/) | MacNativeGames integration, installer and runtime |
 | [`build_map.py`](build_map.py) | Platform-independent map pack generator |
+| [`minigames.py`](minigames.py) | Minigame locations and registration actor IDs |
 
 The runtime adapter currently targets macOS. Community ports can use the [map pack format and runtime contract](docs/map-pack.md). Source code is available under the [MIT License](LICENSE).
 
 ## Optional map marker details
 
-Hover over a map marker with the mouse or move the game's map reticle onto it. The card shows the name, category, coordinates, and any available notes and obtainable items. The optional import reads the public marker icons and Simplified Chinese descriptions from the Gamersky interactive map. The game supplies additional markers and progress states.
+Hover over a map marker with the mouse or move the game's map reticle onto it. The card shows the name, category, coordinates, and any available notes and obtainable items. The optional import adds Simplified Chinese descriptions from the Gamersky interactive map. Matched native landmarks use the game's coordinates and layers.
 
 ```sh
 python3.14 import_gamersky.py map-points.json map-points-detailed.json --romfs "/path/to/romfs"

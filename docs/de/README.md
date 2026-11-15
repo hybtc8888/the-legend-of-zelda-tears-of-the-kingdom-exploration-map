@@ -4,10 +4,10 @@
 
 Diese Mod ergänzt die Karte von **1.4.3** in MacNativeGames auf Macs mit Apple-Chip um eine Erkundungsebene. Die Markierungen folgen der Spielkarte beim Wechsel zwischen Himmel, Oberfläche und Untergrund sowie beim Verschieben und Zoomen. Aktivierte Schreine und Lichtwurzeln behalten ihre Spielsymbole und Schnellreise.
 
-- **4.428 Punkte im Basispaket**, darunter alle **1.000 Krog-Samen**: 800 Einzelrätsel und 100 Transporte mit je zwei Samen. Das Kartenpaket speichert Start und Ziel jedes Transports.
+- **4.436 Punkte im Basispaket**, darunter alle **1.000 Krog-Samen**: 800 Einzelrätsel und 100 Transporte mit je zwei Samen. Das Kartenpaket speichert Start und Ziel jedes Transports.
 - Enthalten sind 152 Schreine, 120 Lichtwurzeln, 15 Kartografietürme, 30 Sonau-Kapselspender sowie Höhlen, Brunnen, Truhen, Rüstungen, Drachentränen und Bosse.
 - Punkte mit Fortschrittserfassung verschwinden nach Abschluss. Besiegte Bosse und Leunen, die wieder erscheinen können, werden abgedunkelt und danach wieder normal angezeigt. Schalte den Fortschrittsfilter aus, um abgeschlossene Punkte zu sehen.
-- Alle acht Gruppen sind standardmäßig aktiv. Die Sichtbarkeit wird für jede Gruppe einzeln gespeichert.
+- Alle zehn Gruppen sind standardmäßig aktiv. Die Sichtbarkeit wird für jede Gruppe einzeln gespeichert.
 
 ## Installation auf dem Mac
 
@@ -31,7 +31,8 @@ Du kannst die Sprache auch über **语言Language：…** am Ende des Bedienfeld
 | **⌘⇧L** | Kategorien und Tastenkürzel ein- oder ausblenden |
 | **⌘⇧M** | Erkundungsebene ein- oder ausschalten |
 | **⌘⇧P** | Fortschrittsfilter umschalten |
-| **⌘⌥1–8** | Gruppe umschalten und Sichtbarkeit speichern |
+| **⌘⌥1–9** | Gruppe umschalten und Sichtbarkeit speichern |
+| **⌘⌥0** | Minispiele umschalten |
 
 1. Orte & Erkundung · 2. Sammelobjekte & Materialien · 3. Gegner & Bosse · 4. Schatztruhen · 5. Krogs · 6. Ausrüstung · 7. Aufgaben · 8. Siedlungen & Dienste
 

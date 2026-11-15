@@ -4,10 +4,10 @@
 
 Ce mod ajoute une couche à la carte du jeu **1.4.3** dans MacNativeGames sur les Mac à puce Apple. Les marqueurs suivent le ciel, la surface et les profondeurs, ainsi que les déplacements et le zoom. Les sanctuaires et les racines activés gardent leurs icônes et la téléportation du jeu.
 
-- **4 428 points dans le paquet de base**, dont les **1 000 noix korogus** : 800 énigmes à une noix et 100 transports à deux noix. Le paquet indique le départ et l’arrivée de chaque transport.
+- **4 436 points dans le paquet de base**, dont les **1 000 noix korogus** : 800 énigmes à une noix et 100 transports à deux noix. Le paquet indique le départ et l’arrivée de chaque transport.
 - Retrouvez 152 sanctuaires, 120 racines, 15 tours de reconnaissance et 30 distributeurs d’artéfacts soneaus, ainsi que des grottes, puits, coffres, armures, larmes du dragon et boss.
 - Les points suivis disparaissent une fois terminés. Les marqueurs des boss et Lynels qui peuvent réapparaître s’assombrissent après leur défaite puis retrouvent leur éclat à leur retour. Désactivez le filtre pour revoir les points terminés.
-- Les huit groupes sont actifs par défaut. La visibilité est enregistrée séparément pour chaque groupe.
+- Les dix groupes sont actifs par défaut. La visibilité est enregistrée séparément pour chaque groupe.
 
 ## Installation sur Mac
 
@@ -31,7 +31,8 @@ Ouvrez la carte du jeu avec **Tab / M** ou le bouton **−** de la manette. Chan
 | **⌘⇧L** | Ouvrir ou fermer le panneau des catégories et raccourcis |
 | **⌘⇧M** | Afficher ou masquer la couche |
 | **⌘⇧P** | Activer ou désactiver le filtre de progression |
-| **⌘⌥1–8** | Basculer le groupe et enregistrer sa visibilité |
+| **⌘⌥1–9** | Basculer le groupe et enregistrer sa visibilité |
+| **⌘⌥0** | Afficher ou masquer les mini-jeux |
 
 1. Lieux et exploration · 2. Objets et matériaux · 3. Ennemis et boss · 4. Coffres · 5. Korogus · 6. Équipement · 7. Quêtes · 8. Villages et services
 

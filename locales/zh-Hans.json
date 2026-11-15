@@ -79,7 +79,8 @@
     "矿场": "矿场",
     "迷你挑战": "迷你挑战",
     "集市": "集市",
-    "龙": "龙"
+    "龙": "龙",
+    "小游戏": "小游戏"
   },
   "groups": {
     "landmarks": "地标与探索",
@@ -89,6 +90,29 @@
     "koroks": "呀哈哈",
     "equipment": "装备",
     "quests": "任务",
-    "facilities": "村镇与设施"
+    "facilities": "村镇与设施",
+    "fairies": "大妖精",
+    "minigames": "小游戏"
+  },
+  "activities": {
+    "ball_haul": "运球报名处",
+    "shield_surfing": "丝莱米的小屋",
+    "flight_range": "飞行训练场",
+    "tarrey_rally": "一始拉力赛",
+    "lurelin_rally": "沃托里拉力赛",
+    "courage_island": "测试勇气之岛",
+    "bravery_island": "测试刚勇之岛",
+    "valor_island": "测试大勇之岛",
+    "ball_toss": "投球训练",
+    "desert_race": "沙漠拉力赛",
+    "wing_flight": "翼飞行挑战",
+    "yiga_training": "依盖队战斗训练",
+    "gong": "敲锣挑战",
+    "horse_obstacles": "骑马障碍赛",
+    "plush_field": "玩偶收集 · 平地",
+    "plush_lakeside": "玩偶收集 · 湖畔",
+    "plush_cliff": "玩偶收集 · 悬崖",
+    "mine_carts": "矿车射靶",
+    "death_mountain_course": "死亡之山矿车赛道"
   }
 }

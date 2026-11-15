@@ -6,5 +6,7 @@
   {"id":"koroks", "color":"82ef58", "categories":["呀哈哈","搬运呀哈哈"]},
   {"id":"equipment", "color":"ff8b51", "categories":["防具","武器","弓与箭","盾牌"]},
   {"id":"quests", "color":"83aaff", "categories":["迷你挑战","情节挑战"]},
-  {"id":"facilities", "color":"dce6ef", "categories":["村庄","驿站","左纳乌制造机","大妖精","旅馆","杂货店","防具店","染色店","珠宝店","古代研究所","女神雕像","烹饪点","特殊NPC","集市"]}
+  {"id":"facilities", "color":"dce6ef", "categories":["村庄","驿站","左纳乌制造机","旅馆","杂货店","防具店","染色店","珠宝店","古代研究所","女神雕像","烹饪点","特殊NPC","集市"]},
+  {"id":"fairies", "color":"ffa9d0", "categories":["大妖精"]},
+  {"id":"minigames", "color":"ffc47f", "categories":["小游戏"]}
 ]

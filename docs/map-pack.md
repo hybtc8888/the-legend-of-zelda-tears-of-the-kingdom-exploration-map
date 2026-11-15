@@ -6,6 +6,8 @@ Each point has a unique string `id`, a string `category`, eastward `x`, northwar
 
 Categories use stable v1 keys, which happen to be Simplified Chinese strings. The [locale catalogs](../locales/) map those keys to presentation labels. Store and compare the keys in point data, saved category selections, and preset rules so that changing a label or language leaves the selection intact. Unknown keys may be shown verbatim. A single pack works in every supported language.
 
+Points in the `小游戏` category use an `activity` key for a localized name from the catalog's `activities` table. A point with `game_name` follows a named place in the native map. The other points mark registration locations derived from actor placements.
+
 A point may include `progress`. Its `key` is a decimal string to preserve 64-bit precision in JavaScript.
 
 | `kind` | State source | Display |
@@ -23,4 +25,4 @@ A detailed pack can add `name`, `notes`, `reward` and `supplies` strings. `notes
 
 The optional root object `marker_text` stores translations by locale code, then field name, then exact source string. For example, a pack with the original value `木箭` in a marker's `reward` can define `marker_text.en.reward["木箭"] = "Arrow"`. Use the source field if the translation is absent or empty. Marker identity, coordinates and progress are shared across languages.
 
-`icon` and `selected_icon` point to PNG files in a sibling `map-icons/` directory. Names contain 20 lowercase hexadecimal characters followed by `.png`. Render a category symbol if an icon is unavailable. `source_id` records the original site's point ID when a game point and a guide point were matched.
+Older detailed packs may include `icon` and `selected_icon` PNG references. The Mac adapter uses native markers and draws its own glyphs for additional points. `source_id` records the original site's point ID when a game point and a guide point were matched. Matched native landmarks use game coordinates and layers so the detail card follows the native icon.

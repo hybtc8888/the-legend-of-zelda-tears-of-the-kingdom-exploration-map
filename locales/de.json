@@ -79,7 +79,8 @@
     "矿场": "Minen",
     "迷你挑战": "Nebenaufgaben",
     "集市": "Märkte",
-    "龙": "Drachen"
+    "龙": "Drachen",
+    "小游戏": "Minispiele"
   },
   "groups": {
     "landmarks": "Orte & Erkundung",
@@ -89,6 +90,29 @@
     "koroks": "Krogs",
     "equipment": "Ausrüstung",
     "quests": "Aufgaben",
-    "facilities": "Siedlungen & Dienste"
+    "facilities": "Siedlungen & Dienste",
+    "fairies": "Große Feen",
+    "minigames": "Minispiele"
+  },
+  "activities": {
+    "ball_haul": "Bollerball-Anmeldung",
+    "shield_surfing": "Selmies Hütte",
+    "flight_range": "Flugplatz",
+    "tarrey_rally": "Taburasa-Rennen",
+    "lurelin_rally": "Angelstedt-Rennen",
+    "courage_island": "Insel der Heldenmutprobe",
+    "bravery_island": "Insel der Tapferkeitsprobe",
+    "valor_island": "Insel der Kühnheitsprobe",
+    "ball_toss": "Ballwerfen",
+    "desert_race": "Wüstenrennen",
+    "wing_flight": "Flügel-Flugprüfung",
+    "yiga_training": "Kampftraining der Yiga",
+    "gong": "Gong-Prüfung",
+    "horse_obstacles": "Pferde-Hindernisparcours",
+    "plush_field": "Plüschtiere sammeln · Ebene",
+    "plush_lakeside": "Plüschtiere sammeln · Seeufer",
+    "plush_cliff": "Plüschtiere sammeln · Klippe",
+    "mine_carts": "Zielschießen in der Lore",
+    "death_mountain_course": "Lorenstrecke am Todesberg"
   }
 }

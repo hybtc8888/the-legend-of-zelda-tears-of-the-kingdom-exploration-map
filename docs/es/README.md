@@ -4,10 +4,10 @@
 
 Este mod añade una capa al mapa del juego **1.4.3** en MacNativeGames para Mac con chip de Apple. Los puntos siguen las vistas del cielo, la superficie y el subsuelo, así como el desplazamiento y el zoom. Los santuarios y las raíces activadas conservan sus iconos y el viaje rápido del juego.
 
-- **4428 puntos en el paquete base**, con las **1000 semillas de kolog**: 800 pruebas de una semilla y 100 encargos de dos. El paquete registra la salida y el destino de cada traslado.
+- **4436 puntos en el paquete base**, con las **1000 semillas de kolog**: 800 pruebas de una semilla y 100 encargos de dos. El paquete registra la salida y el destino de cada traslado.
 - Incluye 152 santuarios, 120 raíces, 15 atalayas y 30 generadores de artilugios zonnan, además de cuevas, pozos, cofres, armaduras, lágrimas de dragón y jefes.
 - Los puntos con seguimiento se ocultan al completarlos. Los jefes y centaleones que reaparecen se atenúan al derrotarlos y recuperan el brillo al volver. Puedes desactivar el filtro para ver los puntos completados.
-- Los ocho grupos están activos por defecto. La visibilidad se guarda por separado para cada grupo.
+- Los diez grupos están activos por defecto. La visibilidad se guarda por separado para cada grupo.
 
 ## Instalación en Mac
 
@@ -31,7 +31,8 @@ Abre el mapa del juego con **Tab / M** o el botón **−** del mando. Cambia de 
 | **⌘⇧L** | Mostrar u ocultar el panel de categorías y atajos |
 | **⌘⇧M** | Activar o desactivar la capa |
 | **⌘⇧P** | Activar o desactivar el filtro de progreso |
-| **⌘⌥1–8** | Alternar el grupo y guardar su visibilidad |
+| **⌘⌥1–9** | Alternar el grupo y guardar su visibilidad |
+| **⌘⌥0** | Alternar los minijuegos |
 
 1. Lugares y exploración · 2. Coleccionables y materiales · 3. Enemigos y jefes · 4. Cofres · 5. Kologs · 6. Equipo · 7. Misiones · 8. Pueblos y servicios
 

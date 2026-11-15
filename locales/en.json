@@ -79,7 +79,8 @@
     "矿场": "Mines",
     "迷你挑战": "Side Quests",
     "集市": "Markets",
-    "龙": "Dragons"
+    "龙": "Dragons",
+    "小游戏": "Minigames"
   },
   "groups": {
     "landmarks": "Landmarks & exploration",
@@ -89,6 +90,29 @@
     "koroks": "Koroks",
     "equipment": "Equipment",
     "quests": "Quests",
-    "facilities": "Towns & services"
+    "facilities": "Towns & services",
+    "fairies": "Great Fairies",
+    "minigames": "Minigames"
+  },
+  "activities": {
+    "ball_haul": "Ultra Ball Haul Check-In",
+    "shield_surfing": "Selmie’s Spot",
+    "flight_range": "Flight Range",
+    "tarrey_rally": "Tarrey Town Race",
+    "lurelin_rally": "Lurelin Water Rally",
+    "courage_island": "Courage Island",
+    "bravery_island": "Bravery Island",
+    "valor_island": "Valor Island",
+    "ball_toss": "Ball toss",
+    "desert_race": "Desert Race",
+    "wing_flight": "Wing flight challenge",
+    "yiga_training": "Yiga combat training",
+    "gong": "Gong challenge",
+    "horse_obstacles": "Horse obstacle course",
+    "plush_field": "Plush collection · field",
+    "plush_lakeside": "Plush collection · lakeside",
+    "plush_cliff": "Plush collection · cliffs",
+    "mine_carts": "Mine-cart target shooting",
+    "death_mountain_course": "Death Mountain mine-cart course"
   }
 }

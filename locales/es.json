@@ -79,7 +79,8 @@
     "矿场": "Minas",
     "迷你挑战": "Misiones secundarias",
     "集市": "Mercados",
-    "龙": "Dragones"
+    "龙": "Dragones",
+    "小游戏": "Minijuegos"
   },
   "groups": {
     "landmarks": "Lugares y exploración",
@@ -89,6 +90,29 @@
     "koroks": "Kologs",
     "equipment": "Equipo",
     "quests": "Misiones",
-    "facilities": "Pueblos y servicios"
+    "facilities": "Pueblos y servicios",
+    "fairies": "Grandes hadas",
+    "minigames": "Minijuegos"
+  },
+  "activities": {
+    "ball_haul": "Acarreo de gorobolas",
+    "shield_surfing": "Cabaña de Selmie",
+    "flight_range": "Zona de entrenamiento",
+    "tarrey_rally": "Circuito de Arkadia",
+    "lurelin_rally": "Circuito de Onaona",
+    "courage_island": "Isla de la prueba del valor",
+    "bravery_island": "Isla de la prueba del coraje",
+    "valor_island": "Isla de la prueba del arrojo",
+    "ball_toss": "Lanzamiento de balón",
+    "desert_race": "Carrera del desierto",
+    "wing_flight": "Desafío de vuelo con ala",
+    "yiga_training": "Entrenamiento del clan Yiga",
+    "gong": "Desafío del gong",
+    "horse_obstacles": "Carrera de obstáculos a caballo",
+    "plush_field": "Recogida de peluches · campo",
+    "plush_lakeside": "Recogida de peluches · lago",
+    "plush_cliff": "Recogida de peluches · acantilado",
+    "mine_carts": "Tiro al blanco en vagoneta",
+    "death_mountain_course": "Circuito de vagonetas de la Montaña de la Muerte"
   }
 }
